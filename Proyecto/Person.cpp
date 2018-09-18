@@ -1,20 +1,36 @@
-#include <stdlib.h>
-#include <iostream>
-#include<vector>
-#include<omp.h>
-#include<time>
 #include"Person.h"
+//#include<iostream>
 
-using namespace std;
+//using namespace std;
 
+/* 0: Persona sana
+* 1: Persona infectada
+* 2: Persona inmune
+* 3: Persona muerta*/
+void Person::create() {
+	Person();
+}
 
-#define _CRT_SECURE_NO_WARNINGS 1 // para deshabilitar errores por uso de funciones deprecated sobre CRT o consola
-#pragma warning(disable : 4996)
+void Person::change_state(int state) {
+	this->state = state;
+}
 
-void assign(int world_size) {
-	int random;
-	int x, y;
-	srand(time(NULL));
-	x = rand() % world_size;
-	y = rand() % world_size;
+int Person::getX() {
+	return x;
+}
+
+int Person::getY() {
+	return y;
+}
+
+void Person::setY(int y) {
+	this->y = y;
+}
+
+void Person::setX(int x) {
+	this->x = x;
+}
+
+int Person::getState() {
+	return state;
 }

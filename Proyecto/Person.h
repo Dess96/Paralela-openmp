@@ -1,13 +1,19 @@
 #pragma once
-#ifndef  Persona
+#ifndef Persona
 #define Persona
 
 class Person {
 private:
-	int state = 0;
 	int x;
 	int y;
+	int state;
 public:
-	void assign(int);
+	void create();
+	void change_state(int);
+	int getX();
+	int getY();
+	void setY(int);
+	void setX(int);
+	int getState();
 };
-#endif // ! Persona
+#endif // !Persona
