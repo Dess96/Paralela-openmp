@@ -5,8 +5,7 @@
 
 /* 0: Persona sana
 * 1: Persona infectada
-* 2: Persona inmune
-* 3: Persona muerta*/
+* 2: Persona inmune*/
 void Person::create() {
 	Person();
 	state = 0;
