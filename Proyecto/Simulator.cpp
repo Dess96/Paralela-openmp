@@ -6,7 +6,7 @@
 
 using namespace std;
 
-/* world_size: Tamaño del espacio bidimensional
+/* world_size: TamaÃ±o del espacio bidimensional
 * number_people: Cantidad total de personas
 * death_duration: 
 * tic: Cantidad de tics que dura la simulacion
@@ -15,7 +15,7 @@ using namespace std;
 * infected: Personas infectadas inicialmente*/
 void Simulator::initialize(int world_size, int number_people, int death_duration, int tic, double infectiousness, double chance_recover, double infected) {
 	Person p;
-	v.resize(world_size); //Vector de vectores de tamaño world_size*world_size
+	v.resize(world_size); //Vector de vectores de tamaÃ±o world_size*world_size
 	world.resize(world_size, v);
 	int perc;
 	int pos1, pos2;
@@ -44,14 +44,14 @@ void Simulator::initialize(int world_size, int number_people, int death_duration
 	}
 	//***************************************************************************************************************************************//
 	//Va aqui?
-	 //Aquí nos encargamos de actualizar el mundo "tic" veces.
+	 //AquÃ­ nos encargamos de actualizar el mundo "tic" veces.
 	for (int i = 0; i < tic; i++) {
-		//Aquí recorremos todos los espacios en el mundo en el tiempo n para modificarlo utilizando 
+		//AquÃ­ recorremos todos los espacios en el mundo en el tiempo n para modificarlo utilizando 
 		//una estructura auxiliar como mundo en el tiempo n+1
 		for (int j = 0; j < world_size; j++) {
 			for (int k = 0; k < world_size; k++) {
 				if (!(world[j][k].empty())) {
-					//mueve a la persona una posición hacia cualquier dirección.  Podríamos hacerlo método
+					//mueve a la persona una posiciÃ³n hacia cualquier direcciÃ³n.  PodrÃ­amos hacerlo mÃ©todo
 					movement = rand() % 8;
 					if (movement == 0) {
 						pos1 = (pos1 = world_size - 1) ? 0 : pos1 + 1; //DERECHA
@@ -92,11 +92,12 @@ void Simulator::initialize(int world_size, int number_people, int death_duration
 
 void Simulator::change_world(int world_size, int number_people, int death_duration, int tic, double infectiousness, double chance_recover, double infected) {
 	int state;
-	double prob = 0;
+	double prob;
 	list<Person>::iterator it;
 	Person p;
 	for (int i = 0; i < world_size; i++) {
 		for (int j = 0; j < world_size; j++) {
+			prob = 0;
 			if(!(world[i][j].empty())) {
 				for (list<Person>::iterator it = world[i][j].begin(); it != world[i][j].end(); ++it) {
 					p = *it;
