@@ -15,6 +15,7 @@ private:
 public:
 	void initialize(int, int, int, int, double, double, double);
 	void update(int);
+	void change_world(int, int, int, int, double, double, double);
 };
 
 #endif // !Simulador

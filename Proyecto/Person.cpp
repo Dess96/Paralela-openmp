@@ -9,6 +9,7 @@
 * 3: Persona muerta*/
 void Person::create() {
 	Person();
+	state = 0;
 }
 
 void Person::change_state(int state) {
