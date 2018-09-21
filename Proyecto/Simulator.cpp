@@ -14,7 +14,7 @@ using namespace std;
 * infectiousness: Potencia infecciosa
 * chance_recover: Probabilidad de recuperacion
 * infected: Personas infectadas inicialmente*/
-void Simulator::initialize(int world_size, int number_people, int death_duration, int tic, double infectiousness, double chance_recover, double infected) {
+void Simulator::initialize(int world_size, int number_people, double infected) {
 	Person p;
 	v.resize(world_size); //Vector de vectores de tamaño world_size*world_size
 	world.resize(world_size, v);
@@ -43,6 +43,17 @@ void Simulator::initialize(int world_size, int number_people, int death_duration
 		p.change_state(1);
 		world[pos1][pos2].push_back(p); //Metemos a la persona en la lista de la posicion correspondiente	
 	}
+	cout << "Posiciones iniciales" << endl;
+	for (int i = 0; i < world_size; i++) {
+		for (int j = 0; j < world_size; j++) {
+			if (!(world[i][j].empty())) {
+				for (list<Person>::iterator it = world[i][j].begin(); it != world[i][j].end(); ++it) {
+					p = *it;
+					cout << "Esta persona de estado " << p.getState() << "estaba en la posicion x " << p.getX() << "y y " << p.getY()<<endl;
+				}
+			}
+		}
+	}
 }
 
 void Simulator::update(int tics, int world_size, int death_duration, double infectiousness, double chance_recover) {
@@ -65,67 +76,49 @@ void Simulator::change_world(int world_size, int death_duration, double infectio
 	for (int i = 0; i < world_size; i++) {
 		for (int j = 0; j < world_size; j++) {
 			prob = 0;
-			if (!world[i][j].empty()) {
+			if (!(world[i][j].empty())) {
 				for (list<Person>::iterator it = world[i][j].begin(); it != world[i][j].end(); ++it) {
 					p = *it;
 					pos1 = movePos(i, world_size);
 					pos2 = movePos(j, world_size);
 					p.setX(pos1);
 					p.setY(pos2);
-					state = p.getState();
-					if (state == 1) { //Si la persona esta infectada
-						prob_rec = rand() % 100000;
-						prob_rec /= 100000;
-						prob += infectiousness; //Aumenta el chance de que un sano se infecte
-						if (tic_actual >= death_duration) { //Si la persona sigue enferma despues del tiempo asignado, muere
-						//	world[i][j].erase(it);
-							death_people++;
-						}
-						else if (prob_rec <= chance_recover) { //Determina si la persona va a poder recuperarse
-							p.change_state(2);
-							inmune_people++;
-						}
-						else {
-							sick_people++;
-						}
-					}
-					else if (state == 0) {
-						prob_infect = rand() % 100000;
-						prob_infect /= 100000;
-						if (prob_infect <= prob) { //Persona se inferma 
-							p.change_state(1);
-							sick_people++;
-						}
-						else {
-							healthy_people++;
-						}
-					}
-					else if (state == 2) {
-						inmune_people++;
-					}
-					world[i][j].erase(it);
+					world[pos1][pos2].push_back(p);
 				}
 			}
 		}
 	}
 	ofstream file;
 	file.open("report.txt");
-	file << "Personas que murieron en el tic "<< tic_actual<< ": "
-		<<death_people << "\n Personas sanas en el tic "<<tic_actual<<": "<<healthy_people << "\n Personas infectadas en el tic: "<<tic_actual<<": "
-		<<sick_people<<"\n Personas inmunes en el tic: "<<tic_actual<<": "<<inmune_people;
+	file << "Personas que murieron en el tic " << tic_actual << ": "
+		<< death_people << "\n Personas sanas en el tic " << tic_actual << ": " << healthy_people << "\n Personas infectadas en el tic: " << tic_actual << ": "
+		<< sick_people << "\n Personas inmunes en el tic: " << tic_actual << ": " << inmune_people;
 	file.close();//Hacer archivo
+	cout << "Estados cambiados" << endl;
+	for (int i = 0; i < world_size; i++) {
+		for (int j = 0; j < world_size; j++) {
+			if (!(world[i][j].empty())) {
+				for (list<Person>::iterator it = world[i][j].begin(); it != world[i][j].end(); ++it) {
+					p = *it;
+					cout << "Ahora tiene estado " << p.getState() << "ahora esta en la posicion x " << p.getX() << "y y " << p.getY() << endl;
+				}
+			}
+		}
+	}
 }
 
 int Simulator::movePos(int pos, int world_size) {
-	int movX = rand() % 8;
-	if ((movX == 1) && (pos == world_size - 1)) {
-		pos = 0;
-	}
-	else if ((movX == -1) && (pos == 0)) {
+	srand(time(NULL));
+	int movX;
+	movX = rand() % 2;
+	movX -= 1;
+	pos += movX;
+	if (pos < 0) {
 		pos = world_size - 1;
 	}
-	else {
-		pos += movX;
+	else if (pos >= world_size) {
+		pos = 0;
 	}
 	return pos;
 }
+

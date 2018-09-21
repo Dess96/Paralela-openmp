@@ -13,7 +13,7 @@ private:
 	vector<vector< list<Person> > > world;
 	vector<list<Person>> v;
 public:
-	void initialize(int, int, int, int, double, double, double);
+	void initialize(int, int, double);
 	void update(int, int, int, double, double);
 	void change_world(int, int, double, double, int);
 	int movePos(int, int);
