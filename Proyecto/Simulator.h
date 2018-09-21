@@ -14,8 +14,9 @@ private:
 	vector<list<Person>> v;
 public:
 	void initialize(int, int, int, int, double, double, double);
-	void update(int);
-	void change_world(int, int, double, double, int, int, int, int, int);
+	void update(int, int, int, double, double);
+	void change_world(int, int, double, double, int);
+	int movePos(int, int);
 };
 
 #endif // !Simulador

@@ -2,6 +2,7 @@
 #include"Person.h"
 #include<iostream>
 #include<time.h>
+#include <fstream>
 #include<stdlib.h>
 
 using namespace std;
@@ -44,9 +45,19 @@ void Simulator::initialize(int world_size, int number_people, int death_duration
 	}
 }
 
-void Simulator::change_world(int world_size, int death_duration, double infectiousness, double chance_recover, int tic_actual, int death_people, int healthy_people, int inmune_people, int infected_people) {
+void Simulator::update(int tics, int world_size, int death_duration, double infectiousness, double chance_recover) {
+	for (int i = 0; i < tics; i++) {
+		change_world(world_size, death_duration, infectiousness, chance_recover, i);
+	}
+}
+
+void Simulator::change_world(int world_size, int death_duration, double infectiousness, double chance_recover, int tic_actual) {
 	srand(time(NULL));
-	int state;
+	int state, pos1, pos2;
+	int death_people = 0;
+	int healthy_people = 0;
+	int inmune_people = 0;
+	int sick_people = 0;
 	double prob;
 	double prob_infect, prob_rec;
 	list<Person>::iterator it;
@@ -54,35 +65,67 @@ void Simulator::change_world(int world_size, int death_duration, double infectio
 	for (int i = 0; i < world_size; i++) {
 		for (int j = 0; j < world_size; j++) {
 			prob = 0;
-			if (!(world[i][j].empty())) {
+			if (!world[i][j].empty()) {
 				for (list<Person>::iterator it = world[i][j].begin(); it != world[i][j].end(); ++it) {
 					p = *it;
+					pos1 = movePos(i, world_size);
+					pos2 = movePos(j, world_size);
+					p.setX(pos1);
+					p.setY(pos2);
 					state = p.getState();
 					if (state == 1) { //Si la persona esta infectada
 						prob_rec = rand() % 100000;
 						prob_rec /= 100000;
 						prob += infectiousness; //Aumenta el chance de que un sano se infecte
 						if (tic_actual >= death_duration) { //Si la persona sigue enferma despues del tiempo asignado, muere
-							world[i][j].erase(it);
+						//	world[i][j].erase(it);
 							death_people++;
 						}
 						else if (prob_rec <= chance_recover) { //Determina si la persona va a poder recuperarse
 							p.change_state(2);
+							inmune_people++;
+						}
+						else {
+							sick_people++;
 						}
 					}
 					else if (state == 0) {
 						prob_infect = rand() % 100000;
 						prob_infect /= 100000;
 						if (prob_infect <= prob) { //Persona se inferma 
-							p.change_state(1); 
+							p.change_state(1);
+							sick_people++;
+						}
+						else {
+							healthy_people++;
 						}
 					}
+					else if (state == 2) {
+						inmune_people++;
+					}
+					world[i][j].erase(it);
 				}
 			}
 		}
 	}
+	ofstream file;
+	file.open("report.txt");
+	file << "Personas que murieron en el tic "<< tic_actual<< ": "
+		<<death_people << "\n Personas sanas en el tic "<<tic_actual<<": "<<healthy_people << "\n Personas infectadas en el tic: "<<tic_actual<<": "
+		<<sick_people<<"\n Personas inmunes en el tic: "<<tic_actual<<": "<<inmune_people;
+	file.close();//Hacer archivo
 }
 
-void Simulator::update(int tics) {
-
+int Simulator::movePos(int pos, int world_size) {
+	int movX = rand() % 8;
+	if ((movX == 1) && (pos == world_size - 1)) {
+		pos = 0;
+	}
+	else if ((movX == -1) && (pos == 0)) {
+		pos = world_size - 1;
+	}
+	else {
+		pos += movX;
+	}
+	return pos;
 }

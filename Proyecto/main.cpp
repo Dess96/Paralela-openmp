@@ -36,6 +36,7 @@ int main(int argc, char * argv[]) {
 		cin >> tic;
 	}
 	sim.initialize(world_size, number_people, death_duration, tic, infectiousness, chance_recover, infected);
+	sim.update(tic, world_size, death_duration, infectiousness, chance_recover);
 
 	cin >> number_people; //Para que no se cierre
 	return 0;
