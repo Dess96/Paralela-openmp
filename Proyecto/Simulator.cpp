@@ -11,7 +11,7 @@ using namespace std;
 * number_people: Cantidad total de personas
 * death_duration: Cuanto pasa antes de que se mueran las personas
 * tic: Cantidad de tics que dura la simulacion
-* infectiousness: Potencia infecciosa
+* infectiousness: Potencia infecciosan
 * chance_recover: Probabilidad de recuperacion
 * infected: Personas infectadas inicialmente*/
 void Simulator::initialize(int world_size, int number_people, double infected) {
@@ -31,7 +31,8 @@ void Simulator::initialize(int world_size, int number_people, double infected) {
 		pos2 = rand() % world_size;
 		p.setX(pos1);
 		p.setY(pos2);
-		world[pos1][pos2].push_back(p); //Metemos a la persona en la lista de la posicion correspondiente
+		world[pos1][pos2]++;
+		lists.push_back(p);
 										//		cout << world[pos1][pos2].back().getState() << endl;
 	}
 	for (int i = 0; i < perc; i++) { //Cambiamos a los infectados
@@ -41,18 +42,11 @@ void Simulator::initialize(int world_size, int number_people, double infected) {
 		p.setX(pos1);
 		p.setY(pos2);
 		p.change_state(1);
-		world[pos1][pos2].push_back(p); //Metemos a la persona en la lista de la posicion correspondiente	
+		world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
+		lists.push_back(p);
 	}
-	cout << "Posiciones iniciales" << endl;
-	for (int i = 0; i < world_size; i++) {
-		for (int j = 0; j < world_size; j++) {
-			if (!(world[i][j].empty())) {
-				for (list<Person>::iterator it = world[i][j].begin(); it != world[i][j].end(); ++it) {
-					p = *it;
-					cout << "Esta persona de estado " << p.getState() << "estaba en la posicion x " << p.getX() << "y y " << p.getY()<<endl;
-				}
-			}
-		}
+	for (list<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
+		cout << "Pos X"<<(*it).getX()<<"Pos Y"<< (*it).getY() <<"Estado"<<(*it).getState()<< endl;
 	}
 }
 
@@ -64,46 +58,22 @@ void Simulator::update(int tics, int world_size, int death_duration, double infe
 
 void Simulator::change_world(int world_size, int death_duration, double infectiousness, double chance_recover, int tic_actual) {
 	srand(time(NULL));
-	int state, pos1, pos2;
+	int state, pos1, pos2, fpos1, fpos2;
 	int death_people = 0;
-	int healthy_people = 0;
 	int inmune_people = 0;
 	int sick_people = 0;
+	int healthy_people = 0;
 	double prob;
 	double prob_infect, prob_rec;
 	list<Person>::iterator it;
-	Person p;
-	for (int i = 0; i < world_size; i++) {
-		for (int j = 0; j < world_size; j++) {
-			prob = 0;
-			if (!(world[i][j].empty())) {
-				for (list<Person>::iterator it = world[i][j].begin(); it != world[i][j].end(); ++it) {
-					p = *it;
-					pos1 = movePos(i, world_size);
-					pos2 = movePos(j, world_size);
-					p.setX(pos1);
-					p.setY(pos2);
-					world[pos1][pos2].push_back(p);
-				}
-			}
-		}
+	for (list<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
+		pos1 = movePos((*it).getX(), world_size);
+		pos2 = movePos((*it).getY(), world_size);
+		(*it).setX(pos1);
+		(*it).setY(pos2);
 	}
-	ofstream file;
-	file.open("report.txt");
-	file << "Personas que murieron en el tic " << tic_actual << ": "
-		<< death_people << "\n Personas sanas en el tic " << tic_actual << ": " << healthy_people << "\n Personas infectadas en el tic: " << tic_actual << ": "
-		<< sick_people << "\n Personas inmunes en el tic: " << tic_actual << ": " << inmune_people;
-	file.close();//Hacer archivo
-	cout << "Estados cambiados" << endl;
-	for (int i = 0; i < world_size; i++) {
-		for (int j = 0; j < world_size; j++) {
-			if (!(world[i][j].empty())) {
-				for (list<Person>::iterator it = world[i][j].begin(); it != world[i][j].end(); ++it) {
-					p = *it;
-					cout << "Ahora tiene estado " << p.getState() << "ahora esta en la posicion x " << p.getX() << "y y " << p.getY() << endl;
-				}
-			}
-		}
+	for (list<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
+		cout << "Ahora tiene Pos X" << (*it).getX() << "Pos Y" << (*it).getY() <<"Estado"<<(*it).getState()<<endl;
 	}
 }
 
@@ -122,3 +92,19 @@ int Simulator::movePos(int pos, int world_size) {
 	return pos;
 }
 
+void Simulator::clear(int world_size) {
+	int newPos1, newPos2;
+	Person p;
+	for (int i = 0; i < world_size; i++) {
+		for (int j = 0; j < world_size; j++) {
+			world[i][j] = 0;
+		}
+	}
+	for (list<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
+		p = *it;
+		newPos1 = p.getX();
+		newPos2 = p.getY();
+		world[newPos1][newPos2]++;
+	}
+
+}
