@@ -7,6 +7,7 @@ private:
 	int x;
 	int y;
 	int state;
+	int sick_time;
 public:
 	void create();
 	void change_state(int);
@@ -15,5 +16,7 @@ public:
 	void setY(int);
 	void setX(int);
 	int getState();
+	int getSick();
+	void setSick(int);
 };
 #endif // !Persona

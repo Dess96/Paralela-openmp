@@ -5,10 +5,10 @@
 
 /* 0: Persona sana
 * 1: Persona infectada
-* 2: Persona inmune*/
+* 2: Persona inmune
+* 3: Persona muerta*/
 void Person::create() {
 	Person();
-	state = 0;
 }
 
 void Person::change_state(int state) {
@@ -33,4 +33,12 @@ void Person::setX(int x) {
 
 int Person::getState() {
 	return state;
+}
+
+int Person::getSick() {
+	return sick_time;
+}
+
+void Person::setSick(int sick_time) {
+	this->sick_time = sick_time;
 }
