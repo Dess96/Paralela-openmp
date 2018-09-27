@@ -18,7 +18,7 @@ public:
 	void update(int, int, int, double, double);
 	void change_world(int, int, double, double, int);
 	int movePos(int, int);
-	void clear();
+	void clear(int);
 };
 
 #endif // !Simulador
