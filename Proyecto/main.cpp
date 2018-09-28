@@ -2,6 +2,7 @@
 #include <iostream>
 #include<string>
 #include<omp.h>
+#include<thread>
 #include"Person.h"
 #include"Simulator.h"
 using namespace std;
@@ -13,6 +14,8 @@ bool validateProb(double, double);
 bool validatePeople(int);
 
 int main(int argc, char * argv[]) {
+	unsigned n = std::thread::hardware_concurrency();
+	int thread_num = 2 * n;
 	int world_sizeM, death_durationM, ticM, number_peopleM;
 	int new_sim = 1;
 	int healthy_people;
@@ -45,8 +48,11 @@ int main(int argc, char * argv[]) {
 		number = to_string(sims);
 		name.append(number);
 		name.append(".txt");
-		healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM);
-		sim.update(name, healthy_people);
+#pragma omp parallel num_threads(thread_num)
+		{
+			healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM);
+			sim.update(name, healthy_people);
+		}
 		cout << "Desea ver otra simulacion?" << endl;
 		cout << "1. Si   2. No" << endl;
 		cin >> new_sim;
