@@ -18,7 +18,7 @@ using namespace std;
 int world_size, death_duration, tic;
 double infected, infectiousness, chance_recover, number_people;
 
-void Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM) {
+int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM) {
 	number_people = number_peopleM;
 	infectiousness = infectiousnessM;
 	chance_recover = chance_recoverM;
@@ -42,7 +42,6 @@ void Simulator::initialize(int number_peopleM, double infectiousnessM, double ch
 		p.setX(pos1);
 		p.setY(pos2);
 		p.change_state(1);
-		p.setSick(1);
 		world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
 		lists.push_back(p);
 	}
@@ -56,9 +55,13 @@ void Simulator::initialize(int number_peopleM, double infectiousnessM, double ch
 		world[pos1][pos2]++;
 		lists.push_back(p);
 	}
+	return healthy;
 }
 
-void Simulator::update(string name) {
+void Simulator::update(string name, int healthy_people) {
+	int sick_people = number_people - healthy_people;
+	int inmune_people = 0;
+	int dead_people = 0;
 	for (int actual_tic = 1; actual_tic <= tic; actual_tic++) {
 		default_random_engine generator;
 		uniform_real_distribution<double> distribution(0.0, 1.0);
@@ -79,6 +82,8 @@ void Simulator::update(string name) {
 				if (prob_infect < prob) {
 					(*it).change_state(1);
 					(*it).setSick(1);
+					sick_people++;
+					healthy_people--;
 				}
 			}
 			else if (state == 1) {
@@ -87,9 +92,13 @@ void Simulator::update(string name) {
 				sick_time = (*it).getSick();
 				if (prob_rec < chance_recover) {
 					(*it).change_state(2);
+					inmune_people++;
+					sick_people--;
 				}
-				else if (sick_time >= death_duration) {
+				else if (sick_time > death_duration) {
 					(*it).change_state(3);
+					dead_people++;
+					sick_people--;
 				}
 				else {
 					sick_time++;
@@ -115,6 +124,8 @@ void Simulator::update(string name) {
 							if (prob_infect < prob) {
 								(*it2).change_state(1);
 								(*it2).setSick(1);
+								sick_people++;
+								healthy_people--;
 							}
 						}
 						else if (state2 == 1) {
@@ -123,9 +134,13 @@ void Simulator::update(string name) {
 							sick_time = (*it2).getSick();
 							if (prob_rec < chance_recover) {
 								(*it2).change_state(2);
+								inmune_people++;
+								sick_people--;
 							}
-							else if (sick_time >= death_duration) {
+							else if (sick_time > death_duration) {
 								(*it2).change_state(3);
+								dead_people++;
+								sick_people--;
 							}
 							else {
 								sick_time++;
@@ -141,8 +156,9 @@ void Simulator::update(string name) {
 				}
 			}
 		}
-		clear(actual_tic, name);
+		clear(actual_tic, name, healthy_people, dead_people, sick_people, inmune_people);
 	}
+	cout << "Archivo generado" << endl;
 	lists.clear();
 	world.clear();
 }
@@ -161,38 +177,29 @@ int Simulator::movePos(int pos, int world_size) {
 	return pos;
 }
 
-void Simulator::clear(int actual_tic, string name) {
+void Simulator::clear(int actual_tic, string name, int healthy_people, int dead_people, int sick_people, int inmune_people) {
 	int i, j, state;
-	int sick_people = 0;
-	int dead_people = 0;
-	int healthy_people = 0;
-	int inmune_people = 0;
 	list<Person>::iterator it = lists.begin();
+	ofstream file;
+	file.open(name, ios_base::app);
+	file << "Reporte del tic " << actual_tic << endl
+		<< " Personas muertas total " << dead_people << ", promedio " << dead_people / actual_tic << ", porcentaje " << number_people * dead_people / 100 << endl
+		<< " Personas sanas total " << healthy_people << ", promedio " << healthy_people / actual_tic << ", porcentaje " << number_people * healthy_people / 100 << endl
+		<< " Personas enfermas total " << sick_people << ", promedio " << sick_people / actual_tic << ", porcentaje " << number_people * sick_people / 100 << endl
+		<< " Personas inmunes total " << inmune_people << ", promedio " << inmune_people / actual_tic << ", porcentaje " << number_people * inmune_people / 100 << endl;
+
+	file.close();//Hacer archivo
+
 	while (it != lists.end()) {
 		i = (*it).getX();
 		j = (*it).getY();
 		state = (*it).getState();
-		if (state == 1) {
-			sick_people++;
-			++it;
-		}
-		else if (state == 2) {
-			inmune_people++;
-			++it;
-		}
-		else if (state == 3) {
-			dead_people++;
+		if (state == 3) {
 			lists.erase(it++);
 		}
-		else if (state == 0) {
-			healthy_people++;
+		else{
 			++it;
 		}
 		world[i][j]++;
 	}
-	ofstream file;
-	file.open(name, ios_base::app);
-	file << "Reporte del tic " << actual_tic << " Personas muertas " << dead_people << " Personas sanas " << healthy_people << " Personas enfermas " << sick_people << " Personas inmunes " << inmune_people << endl;
-
-	file.close();//Hacer archivo
 }

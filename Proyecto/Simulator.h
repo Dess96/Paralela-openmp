@@ -14,10 +14,10 @@ private:
 	vector<int> v;
 	list<Person> lists;
 public:
-	void initialize(int, double, double, int, double, int, int);
-	void update(string);
+	int initialize(int, double, double, int, double, int, int);
+	void update(string, int);
 	int movePos(int, int);
-	void clear(int, string);
+	void clear(int, string, int, int, int, int);
 };
 
 #endif // !Simulador

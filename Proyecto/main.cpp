@@ -45,8 +45,8 @@ int main(int argc, char * argv[]) {
 		number = to_string(sims);
 		name.append(number);
 		name.append(".txt");
-		sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM);
-		sim.update(name);
+		healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM);
+		sim.update(name, healthy_people);
 		cout << "Desea ver otra simulacion?" << endl;
 		cout << "1. Si   2. No" << endl;
 		cin >> new_sim;
