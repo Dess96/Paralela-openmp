@@ -14,9 +14,8 @@ private:
 	vector<int> v;
 	list<Person> lists;
 public:
-	void initialize(int, int, double);
-	void update(int, int, int, double, double, string);
-	void change_world(int, int, double, double, int, string);
+	void initialize(int, double, double, int, double, int, int);
+	void update(string);
 	int movePos(int, int);
 	void clear(int, string);
 };
