@@ -80,116 +80,45 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 }
 
 void Simulator::update(string name, int healthy_people) {
+	default_random_engine generator;
+	uniform_real_distribution<double> distribution(0.0, 1.0);
 	int sick_people = number_people - healthy_people;
 	int inmune_people = 0;
 	int dead_people = 0;
-	default_random_engine generator;
-	uniform_real_distribution<double> distribution(0.0, 1.0);
+	int state, i, j, pos1, pos2, sick_time;
 	double prob_rec, prob_infect;
 	double prob;
-	int sick_time;
-	int state, state2, i, j, i2, j2, pos1, pos2;
-	vector<Person>::iterator it2;
 	for (int actual_tic = 1; actual_tic <= tic; actual_tic++) {
-		for (vector<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
+#pragma omp parallel for num_threads(thread_count)
+		for (int k = 0; k < lists.size(); k++) {
 			prob = 0;
-			i = (*it).getX();
-			j = (*it).getY();
-			//Cambiar estado si se le debe cambiar el estado
-			state = (*it).getState();
-			if (state == 0) {
-				prob_infect = distribution(generator);
-				if (prob_infect < prob) {
-					(*it).change_state(1);
-					(*it).setSick(1);
-					sick_people++;
-					healthy_people--;
-				}
-			}
-			else if (state == 1) {
-				prob += infectiousness;
-				prob_rec = distribution(generator);
-				sick_time = (*it).getSick();
-				if (prob_rec < chance_recover) {
-					(*it).change_state(2);
-					inmune_people++;
-					sick_people--;
-				}
-				else if (sick_time > death_duration) {
-					(*it).change_state(3);
-					dead_people++;
-					sick_people--;
-				}
-				else {
-					sick_time++;
-					(*it).setSick(sick_time);
-				}
-			}
+			i = lists[k].getX();
+			j = lists[k].getY();
 			pos1 = movePos(i, world_size);
 			pos2 = movePos(j, world_size);
-			(*it).setX(pos1);
-			(*it).setY(pos2);
-			it2 = it;
-			it2++;
-			if (world[i][j] > 0) {
+#pragma omp critical
+			{
+				lists[k].setX(pos1);
+				lists[k].setY(pos2);
 				world[i][j]--;
-				while ((world[i][j] > 0) && (it2 != lists.end())) {
-					i2 = (*it2).getX();
-					j2 = (*it2).getY();
-					if (i == i2 && j == j2) {
-						world[i][j]--;
-						state2 = (*it2).getState();
-						if (state2 == 0) {
-							prob_infect = distribution(generator);
-							if (prob_infect < prob) {
-								(*it2).change_state(1);
-								(*it2).setSick(1);
-								sick_people++;
-								healthy_people--;
-							}
-						}
-						else if (state2 == 1) {
-							prob += infectiousness;
-							prob_rec = distribution(generator);
-							sick_time = (*it2).getSick();
-							if (prob_rec < chance_recover) {
-								(*it2).change_state(2);
-								inmune_people++;
-								sick_people--;
-							}
-							else if (sick_time > death_duration) {
-								(*it2).change_state(3);
-								dead_people++;
-								sick_people--;
-							}
-							else {
-								sick_time++;
-								(*it2).setSick(sick_time);
-							}
-						}
-						pos1 = movePos(i, world_size);
-						pos2 = movePos(j, world_size);
-						(*it2).setX(pos1);
-						(*it2).setY(pos2);
-					}
-					it2++;
-				}
 			}
 		}
-		clear(actual_tic, name, healthy_people, dead_people, sick_people, inmune_people);
-	}
 #pragma omp single
-	{
-		cout << "Archivo generado" << endl;
-		lists.clear();
-		world.clear();
+		{
+			cout << "Actualizadas" << endl;
+			for (vector<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
+				cout << (*it).getX() << (*it).getY() << (*it).getState() << endl;
+			}
+		}
 	}
 }
 
 int Simulator::movePos(int pos, int world_size) {
 	int movX;
 	movX = rand() % 2;
+#pragma omp atomic
 	movX -= 1;
+#pragma omp atomic
 	pos += movX;
 	if (pos < 0) {
 		pos = world_size - 1;
@@ -198,34 +127,4 @@ int Simulator::movePos(int pos, int world_size) {
 		pos = 0;
 	}
 	return pos;
-}
-
-void Simulator::clear(int actual_tic, string name, int healthy_people, int dead_people, int sick_people, int inmune_people) {
-	int i, j, state;
-	vector<Person>::iterator it = lists.begin();
-#pragma omp single
-	{
-		ofstream file;
-		file.open(name, ios_base::app);
-		file << "Reporte del tic " << actual_tic << endl
-			<< " Personas muertas total " << dead_people << ", promedio " << dead_people / actual_tic << ", porcentaje " << number_people * dead_people / 100 << endl
-			<< " Personas sanas total " << healthy_people << ", promedio " << healthy_people / actual_tic << ", porcentaje " << number_people * healthy_people / 100 << endl
-			<< " Personas enfermas total " << sick_people << ", promedio " << sick_people / actual_tic << ", porcentaje " << number_people * sick_people / 100 << endl
-			<< " Personas inmunes total " << inmune_people << ", promedio " << inmune_people / actual_tic << ", porcentaje " << number_people * inmune_people / 100 << endl;
-
-		file.close();//Hacer archivo
-	}
-
-	while (it != lists.end()) {
-		i = (*it).getX();
-		j = (*it).getY();
-		state = (*it).getState();
-		if (state == 3) {
-			lists.erase(it++);
-		}
-		else {
-			++it;
-		}
-		world[i][j]++;
-	}
 }
