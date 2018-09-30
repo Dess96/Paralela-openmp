@@ -3,9 +3,9 @@
 #include<iostream>
 #include<random>
 #include<time.h>
-#include<omp.h>
 #include <fstream>
 #include<stdlib.h>
+#include<omp.h>
 
 using namespace std;
 
@@ -20,6 +20,9 @@ int world_size, death_duration, tic, thread_count;
 double infected, infectiousness, chance_recover, number_people;
 
 int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM) {
+	int perc;
+	int healthy;
+	int pos1, pos2;
 	number_people = number_peopleM;
 	infectiousness = infectiousnessM;
 	chance_recover = chance_recoverM;
@@ -27,20 +30,18 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 	infected = infectedM;
 	world_size = world_sizeM;
 	tic = ticM;
-	thread_count = omp_get_num_threads();
+	thread_count = omp_get_thread_num();
 	Person p;
 #pragma omp single
 	{
 		v.resize(world_size); //Vector de vectores de tamaño world_size*world_size
 		world.resize(world_size, v);
+		lists.resize(number_people);
 	}
-	int perc;
-	int healthy;
-	int pos1, pos2;
 	perc = number_people * infected / 100; //Cantidad correspondiente al porcentaje dado
 	healthy = number_people - perc; //Gente sana
 	srand(time(NULL));
-#pragma omp parallel for num_threads (thread_count)
+#pragma omp parallel for num_threads(thread_count)
 	for (int i = 0; i < perc; i++) { //Cambiamos a los infectados
 		p.create(); //Se crean sanos y con su x y y
 		pos1 = rand() % world_size;
@@ -50,25 +51,30 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 			p.setX(pos1);
 			p.setY(pos2);
 			p.change_state(1);
+			world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
+			lists[i] = p;
 		}
-#pragma omp atomic
-		world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
-		lists.push_back(p);
 	}
-#pragma omp parallel for num_threads (thread_count)
-	for (int i = 0; i < healthy; i++) {
+
+#pragma omp parallel for num_threads(thread_count)
+	for (int j = perc; j < lists.size(); j++) {
 		p.create();
 		pos1 = rand() % world_size;
 		pos2 = rand() % world_size;
 #pragma omp critical
 		{
-		p.setX(pos1);
-		p.setY(pos2);
-		p.change_state(0);
+			p.setX(pos1);
+			p.setY(pos2);
+			p.change_state(0);
+			world[pos1][pos2]++;
+			lists[j] = p;
 		}
-#pragma omp atomic
-		world[pos1][pos2]++;
-		lists.push_back(p);
+	}
+#pragma omp single
+	{
+		for (vector<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
+			cout << (*it).getX() << (*it).getY() << (*it).getState() << endl;
+		}
 	}
 	return healthy;
 }
@@ -77,16 +83,15 @@ void Simulator::update(string name, int healthy_people) {
 	int sick_people = number_people - healthy_people;
 	int inmune_people = 0;
 	int dead_people = 0;
+	default_random_engine generator;
+	uniform_real_distribution<double> distribution(0.0, 1.0);
+	double prob_rec, prob_infect;
+	double prob;
+	int sick_time;
+	int state, state2, i, j, i2, j2, pos1, pos2;
+	vector<Person>::iterator it2;
 	for (int actual_tic = 1; actual_tic <= tic; actual_tic++) {
-		default_random_engine generator;
-		uniform_real_distribution<double> distribution(0.0, 1.0);
-		double prob_rec, prob_infect;
-		double prob;
-		int sick_time;
-		int state, state2, i, j, i2, j2, pos1, pos2;
-		list<Person>::iterator it;
-		list<Person>::iterator it2;
-		for (list<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
+		for (vector<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
 			prob = 0;
 			i = (*it).getX();
 			j = (*it).getY();
@@ -175,9 +180,9 @@ void Simulator::update(string name, int healthy_people) {
 	}
 #pragma omp single
 	{
-	cout << "Archivo generado" << endl;
-	lists.clear();
-	world.clear();
+		cout << "Archivo generado" << endl;
+		lists.clear();
+		world.clear();
 	}
 }
 
@@ -197,7 +202,7 @@ int Simulator::movePos(int pos, int world_size) {
 
 void Simulator::clear(int actual_tic, string name, int healthy_people, int dead_people, int sick_people, int inmune_people) {
 	int i, j, state;
-	list<Person>::iterator it = lists.begin();
+	vector<Person>::iterator it = lists.begin();
 #pragma omp single
 	{
 		ofstream file;
@@ -218,7 +223,7 @@ void Simulator::clear(int actual_tic, string name, int healthy_people, int dead_
 		if (state == 3) {
 			lists.erase(it++);
 		}
-		else{
+		else {
 			++it;
 		}
 		world[i][j]++;
