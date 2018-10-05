@@ -17,7 +17,7 @@ using namespace std;
 * chance_recover: Probabilidad de recuperacion
 * infected: Personas infectadas inicialmente*/
 int world_size, death_duration, tic, thread_count;
-int healthy_people, dead_people, inmune_people, sick_people;
+int healthy_people, dead_people, sick_people, inmune_people;
 double infected, infectiousness, chance_recover, number_people;
 
 int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM) {
@@ -65,12 +65,6 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 		world[pos1][pos2]++;
 		peopleVec[j] = p;
 	}
-#pragma omp single
-	{
-		for (vector<Person>::iterator it = peopleVec.begin(); it != peopleVec.end(); ++it) {
-			cout << "X " << (*it).getX() << " Y " << (*it).getY() << " State " << (*it).getState() << endl;
-		}
-	}
 	return healthy;
 }
 
@@ -93,8 +87,11 @@ void Simulator::update(string name, int healthy) {
 				check_vec(k, i, j);
 			}
 		}
-//		cout << "Enfermos " << sick_people << " inmunes " << inmune_people << " sanos " << healthy_people << " muertos " << dead_people << " iteracion " << actual_tic << endl;
+		clear(actual_tic, name);
 	}
+	cout << "Archivo generado" << endl;
+	peopleVec.clear();
+	world.clear();
 }
 
 int Simulator::movePos(int pos, int world_size) {
@@ -114,21 +111,25 @@ int Simulator::movePos(int pos, int world_size) {
 }
 
 void Simulator::check_vec(int k, int i, int j) {
-	int i2, j2;
-	int state = peopleVec[i].getState();
+	int i2, j2, pos1, pos2;
 	for (int l = k; l < peopleVec.size(); l++) {
 		if (world[i][j] > 0) {
 			i2 = peopleVec[l].getX();
 			j2 = peopleVec[l].getY();
 			if ((i2 == i) && (j2 == j)) {
 				changeState(l);
+				pos1 = movePos(i, world_size);
+				pos2 = movePos(j, world_size);
+				peopleVec[l].setX(pos1);
+				peopleVec[l].setY(pos2);
+				world[i][j]--;
 			}
 		}
 	}
 }
 
 void Simulator::changeState(int i) {
-	default_random_engine generator;
+	random_device generator;
 	uniform_real_distribution<double> distribution(0.0, 1.0);
 	double prob_infect, prob_rec;
 	int sick_time;
@@ -136,7 +137,7 @@ void Simulator::changeState(int i) {
 	if (state == 1) {
 		prob += infectiousness;
 		sick_time = peopleVec[i].getSick();
-		if (sick_time > death_duration) {
+		if (sick_time >= death_duration) {
 			prob_rec = distribution(generator);
 			if (prob_rec < chance_recover) {
 				peopleVec[i].change_state(2);
@@ -164,5 +165,19 @@ void Simulator::changeState(int i) {
 		}
 		prob = 0;
 	}
-	cout << prob << endl;
+	else {
+		prob = 0;
+	}
+}
+
+void Simulator::clear(int actual_tic, string name) {
+	ofstream file;
+	file.open(name, ios_base::app);
+	file << "Reporte del tic " << actual_tic << endl
+		<< " Personas muertas total " << dead_people << ", promedio " << dead_people / actual_tic << ", porcentaje " << number_people * dead_people / 100 << endl
+		<< " Personas sanas total " << healthy_people << ", promedio " << healthy_people / actual_tic << ", porcentaje " << number_people * healthy_people / 100 << endl
+		<< " Personas enfermas total " << sick_people << ", promedio " << sick_people / actual_tic << ", porcentaje " << number_people * sick_people / 100 << endl
+		<< " Personas inmunes total " << inmune_people << ", promedio " << inmune_people / actual_tic << ", porcentaje " << number_people * inmune_people / 100 << endl;
+
+	file.close();//Hacer archivo
 }
