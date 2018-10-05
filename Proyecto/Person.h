@@ -9,7 +9,7 @@ private:
 	int state;
 	int sick_time;
 public:
-	void create();
+	Person();
 	void change_state(int);
 	int getX();
 	int getY();

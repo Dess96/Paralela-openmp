@@ -17,6 +17,7 @@ using namespace std;
 * chance_recover: Probabilidad de recuperacion
 * infected: Personas infectadas inicialmente*/
 int world_size, death_duration, tic, thread_count;
+int healthy_people, dead_people, inmune_people, sick_people;
 double infected, infectiousness, chance_recover, number_people;
 
 int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM) {
@@ -36,80 +37,63 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 	{
 		v.resize(world_size); //Vector de vectores de tamaño world_size*world_size
 		world.resize(world_size, v);
-		lists.resize(number_people);
+		peopleVec.resize(number_people);
 	}
 	perc = number_people * infected / 100; //Cantidad correspondiente al porcentaje dado
 	healthy = number_people - perc; //Gente sana
 	srand(time(NULL));
 #pragma omp parallel for num_threads(thread_count)
 	for (int i = 0; i < perc; i++) { //Cambiamos a los infectados
-		p.create(); //Se crean sanos y con su x y y
+		Person p; //Se crean sanos y con su x y y
 		pos1 = rand() % world_size;
 		pos2 = rand() % world_size;
-#pragma omp critical
-		{
-			p.setX(pos1);
-			p.setY(pos2);
-			p.change_state(1);
-			world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
-			lists[i] = p;
-		}
+		p.setX(pos1);
+		p.setY(pos2);
+		p.change_state(1);
+		p.setSick(1);
+		world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
+		peopleVec[i] = p;
 	}
 
 #pragma omp parallel for num_threads(thread_count)
-	for (int j = perc; j < lists.size(); j++) {
-		p.create();
+	for (int j = perc; j < peopleVec.size(); j++) {
+		Person p;
 		pos1 = rand() % world_size;
 		pos2 = rand() % world_size;
-#pragma omp critical
-		{
-			p.setX(pos1);
-			p.setY(pos2);
-			p.change_state(0);
-			world[pos1][pos2]++;
-			lists[j] = p;
-		}
+		p.setX(pos1);
+		p.setY(pos2);
+		world[pos1][pos2]++;
+		peopleVec[j] = p;
 	}
 #pragma omp single
 	{
-		for (vector<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
-			cout << (*it).getX() << (*it).getY() << (*it).getState() << endl;
+		for (vector<Person>::iterator it = peopleVec.begin(); it != peopleVec.end(); ++it) {
+			cout << "X " << (*it).getX() << " Y " << (*it).getY() << " State " << (*it).getState() << endl;
 		}
 	}
 	return healthy;
 }
 
-void Simulator::update(string name, int healthy_people) {
-	default_random_engine generator;
-	uniform_real_distribution<double> distribution(0.0, 1.0);
-	int sick_people = number_people - healthy_people;
-	int inmune_people = 0;
-	int dead_people = 0;
-	int state, i, j, pos1, pos2, sick_time;
-	double prob_rec, prob_infect;
-	double prob;
+void Simulator::update(string name, int healthy) {
+	healthy_people = healthy;
+	sick_people = number_people - healthy_people;
+	int state, i, j, pos1, pos2;
 	for (int actual_tic = 1; actual_tic <= tic; actual_tic++) {
 #pragma omp parallel for num_threads(thread_count)
-		for (int k = 0; k < lists.size(); k++) {
-			prob = 0;
-			i = lists[k].getX();
-			j = lists[k].getY();
+		for (int k = 0; k < peopleVec.size(); k++) {
+			i = peopleVec[k].getX();
+			j = peopleVec[k].getY();
+			changeState(k);
 			pos1 = movePos(i, world_size);
 			pos2 = movePos(j, world_size);
-#pragma omp critical
-			{
-				lists[k].setX(pos1);
-				lists[k].setY(pos2);
-				world[i][j]--;
+			peopleVec[k].setX(pos1);
+			peopleVec[k].setY(pos2);
+			world[i][j]--;
+			if (world[i][j] > 0) {
+				check_vec(k, i, j);
 			}
 		}
-#pragma omp single
-		{
-			cout << "Actualizadas" << endl;
-			for (vector<Person>::iterator it = lists.begin(); it != lists.end(); ++it) {
-				cout << (*it).getX() << (*it).getY() << (*it).getState() << endl;
-			}
-		}
+//		cout << "Enfermos " << sick_people << " inmunes " << inmune_people << " sanos " << healthy_people << " muertos " << dead_people << " iteracion " << actual_tic << endl;
 	}
 }
 
@@ -127,4 +111,58 @@ int Simulator::movePos(int pos, int world_size) {
 		pos = 0;
 	}
 	return pos;
+}
+
+void Simulator::check_vec(int k, int i, int j) {
+	int i2, j2;
+	int state = peopleVec[i].getState();
+	for (int l = k; l < peopleVec.size(); l++) {
+		if (world[i][j] > 0) {
+			i2 = peopleVec[l].getX();
+			j2 = peopleVec[l].getY();
+			if ((i2 == i) && (j2 == j)) {
+				changeState(l);
+			}
+		}
+	}
+}
+
+void Simulator::changeState(int i) {
+	default_random_engine generator;
+	uniform_real_distribution<double> distribution(0.0, 1.0);
+	double prob_infect, prob_rec;
+	int sick_time;
+	int state = peopleVec[i].getState();
+	if (state == 1) {
+		prob += infectiousness;
+		sick_time = peopleVec[i].getSick();
+		if (sick_time > death_duration) {
+			prob_rec = distribution(generator);
+			if (prob_rec < chance_recover) {
+				peopleVec[i].change_state(2);
+				sick_people--;
+				inmune_people++;
+			}
+			else {
+				peopleVec[i].change_state(3);
+				sick_people--;
+				dead_people++;
+			}
+		}
+		else {
+			sick_time++;
+			peopleVec[i].setSick(sick_time);
+		}
+	}
+	else if (state == 0) {
+		prob_infect = distribution(generator);
+		if (prob_infect < prob) {
+			peopleVec[i].change_state(1);
+			peopleVec[i].setSick(1);
+			healthy_people--;
+			sick_people++;
+		}
+		prob = 0;
+	}
+	cout << prob << endl;
 }
