@@ -51,6 +51,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 		p.setY(pos2);
 		p.change_state(1);
 		p.setSick(1);
+#pragma omp atomic
 		world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
 		peopleVec[i] = p;
 	}
@@ -62,6 +63,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 		pos2 = rand() % world_size;
 		p.setX(pos1);
 		p.setY(pos2);
+#pragma omp atomic
 		world[pos1][pos2]++;
 		peopleVec[j] = p;
 	}
@@ -82,16 +84,22 @@ void Simulator::update(string name, int healthy) {
 			pos2 = movePos(j, world_size);
 			peopleVec[k].setX(pos1);
 			peopleVec[k].setY(pos2);
+#pragma omp atomic
 			world[i][j]--;
 			if (world[i][j] > 0) {
 				check_vec(k, i, j);
 			}
 		}
-		clear(actual_tic, name);
+#pragma omp single
+		cout << "Enfermos " << sick_people << " inmunes " << inmune_people << " sanos " << healthy_people << " muertos " << dead_people << " iteracion " << actual_tic << endl;
+//		clear(actual_tic, name);
 	}
-	cout << "Archivo generado" << endl;
-	peopleVec.clear();
-	world.clear();
+#pragma omp single
+	{
+		cout << "Archivo generado" << endl;
+		peopleVec.clear();
+		world.clear();
+	}
 }
 
 int Simulator::movePos(int pos, int world_size) {
@@ -112,6 +120,7 @@ int Simulator::movePos(int pos, int world_size) {
 
 void Simulator::check_vec(int k, int i, int j) {
 	int i2, j2, pos1, pos2;
+#pragma omp parallel for num_threads(thread_count)
 	for (int l = k; l < peopleVec.size(); l++) {
 		if (world[i][j] > 0) {
 			i2 = peopleVec[l].getX();
@@ -122,6 +131,7 @@ void Simulator::check_vec(int k, int i, int j) {
 				pos2 = movePos(j, world_size);
 				peopleVec[l].setX(pos1);
 				peopleVec[l].setY(pos2);
+#pragma omp atomic
 				world[i][j]--;
 			}
 		}
@@ -171,13 +181,16 @@ void Simulator::changeState(int i) {
 }
 
 void Simulator::clear(int actual_tic, string name) {
-	ofstream file;
-	file.open(name, ios_base::app);
-	file << "Reporte del tic " << actual_tic << endl
-		<< " Personas muertas total " << dead_people << ", promedio " << dead_people / actual_tic << ", porcentaje " << number_people * dead_people / 100 << endl
-		<< " Personas sanas total " << healthy_people << ", promedio " << healthy_people / actual_tic << ", porcentaje " << number_people * healthy_people / 100 << endl
-		<< " Personas enfermas total " << sick_people << ", promedio " << sick_people / actual_tic << ", porcentaje " << number_people * sick_people / 100 << endl
-		<< " Personas inmunes total " << inmune_people << ", promedio " << inmune_people / actual_tic << ", porcentaje " << number_people * inmune_people / 100 << endl;
+#pragma omp single
+	{
+		ofstream file;
+		file.open(name, ios_base::app);
+		file << "Reporte del tic " << actual_tic << endl
+			<< " Personas muertas total " << dead_people << ", promedio " << dead_people / actual_tic << ", porcentaje " << number_people * dead_people / 100 << endl
+			<< " Personas sanas total " << healthy_people << ", promedio " << healthy_people / actual_tic << ", porcentaje " << number_people * healthy_people / 100 << endl
+			<< " Personas enfermas total " << sick_people << ", promedio " << sick_people / actual_tic << ", porcentaje " << number_people * sick_people / 100 << endl
+			<< " Personas inmunes total " << inmune_people << ", promedio " << inmune_people / actual_tic << ", porcentaje " << number_people * inmune_people / 100 << endl;
 
-	file.close();//Hacer archivo
+		file.close();//Hacer archivo
+	}
 }
