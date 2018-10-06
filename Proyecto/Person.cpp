@@ -1,17 +1,14 @@
 #include"Person.h"
-//#include<iostream>
-
-//using namespace std;
 
 /* 0: Persona sana
 * 1: Persona infectada
 * 2: Persona inmune
 * 3: Persona muerta*/
 Person::Person() {
-	this->state = 0;
+	this->state = 0; //Personas nacen sanas
 }
 
-void Person::change_state(int state) {
+void Person::setState(int state) {
 	this->state = state;
 }
 

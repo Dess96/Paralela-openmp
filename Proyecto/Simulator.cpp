@@ -9,7 +9,7 @@
 
 using namespace std;
 
-/* world_size: TamaÃ±o del espacio bidimensional
+/* world_size: Tamaño del espacio bidimensional
 * number_people: Cantidad total de personas
 * death_duration: Cuanto pasa antes de que se mueran las personas
 * tic: Cantidad de tics que dura la simulacion
@@ -20,7 +20,7 @@ int world_size, death_duration, tic, thread_count;
 int healthy_people, dead_people, sick_people, inmune_people;
 double infected, infectiousness, chance_recover, number_people;
 
-int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM) {
+int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM, int thread_countM) {
 	int perc;
 	int healthy;
 	int pos1, pos2;
@@ -31,11 +31,11 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 	infected = infectedM;
 	world_size = world_sizeM;
 	tic = ticM;
-	thread_count = omp_get_thread_num();
+	thread_count = thread_countM;
 	Person p;
 #pragma omp single
 	{
-		v.resize(world_size); //Vector de vectores de tamaÃ±o world_size*world_size
+		v.resize(world_size); //Vector de vectores de tamaño world_size*world_size
 		world.resize(world_size, v);
 		peopleVec.resize(number_people);
 	}
@@ -49,7 +49,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 		pos2 = rand() % world_size;
 		p.setX(pos1);
 		p.setY(pos2);
-		p.change_state(1);
+		p.setState(1);
 		p.setSick(1);
 #pragma omp atomic
 		world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
@@ -72,7 +72,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 
 void Simulator::update(string name, int healthy) {
 	healthy_people = healthy;
-	sick_people = number_people - healthy_people;
+	sick_people = number_people - healthy;
 	int state, i, j, pos1, pos2;
 	for (int actual_tic = 1; actual_tic <= tic; actual_tic++) {
 #pragma omp parallel for num_threads(thread_count)
@@ -87,18 +87,22 @@ void Simulator::update(string name, int healthy) {
 #pragma omp atomic
 			world[i][j]--;
 			if (world[i][j] > 0) {
-				check_vec(k, i, j);
+				checkVec(k, i, j);
 			}
 		}
 #pragma omp single
-		cout << "Enfermos " << sick_people << " inmunes " << inmune_people << " sanos " << healthy_people << " muertos " << dead_people << " iteracion " << actual_tic << endl;
-//		clear(actual_tic, name);
+		{
+			sick_people -= dead_people;
+			sick_people -= inmune_people;
+			healthy_people = number_people - (sick_people + dead_people + inmune_people);
+		}
+		clear(actual_tic, name);
 	}
 #pragma omp single
 	{
 		cout << "Archivo generado" << endl;
-		peopleVec.clear();
-		world.clear();
+		peopleVec.clear(); //*//
+		world.clear(); //*//
 	}
 }
 
@@ -118,9 +122,9 @@ int Simulator::movePos(int pos, int world_size) {
 	return pos;
 }
 
-void Simulator::check_vec(int k, int i, int j) {
+//SOLO UN HILO
+void Simulator::checkVec(int k, int i, int j) {
 	int i2, j2, pos1, pos2;
-#pragma omp parallel for num_threads(thread_count)
 	for (int l = k; l < peopleVec.size(); l++) {
 		if (world[i][j] > 0) {
 			i2 = peopleVec[l].getX();
@@ -131,7 +135,6 @@ void Simulator::check_vec(int k, int i, int j) {
 				pos2 = movePos(j, world_size);
 				peopleVec[l].setX(pos1);
 				peopleVec[l].setY(pos2);
-#pragma omp atomic
 				world[i][j]--;
 			}
 		}
@@ -144,19 +147,18 @@ void Simulator::changeState(int i) {
 	double prob_infect, prob_rec;
 	int sick_time;
 	int state = peopleVec[i].getState();
+#pragma omp parallel num_threads(thread_count) reduction(+:sick_people, dead_people, inmune_people, healthy_people) private(sick_time)
 	if (state == 1) {
 		prob += infectiousness;
 		sick_time = peopleVec[i].getSick();
-		if (sick_time >= death_duration) {
+		if (sick_time > death_duration) {
 			prob_rec = distribution(generator);
 			if (prob_rec < chance_recover) {
-				peopleVec[i].change_state(2);
-				sick_people--;
+				peopleVec[i].setState(2);
 				inmune_people++;
 			}
 			else {
-				peopleVec[i].change_state(3);
-				sick_people--;
+				peopleVec[i].setState(3);
 				dead_people++;
 			}
 		}
@@ -168,9 +170,8 @@ void Simulator::changeState(int i) {
 	else if (state == 0) {
 		prob_infect = distribution(generator);
 		if (prob_infect < prob) {
-			peopleVec[i].change_state(1);
+			peopleVec[i].setState(1);
 			peopleVec[i].setSick(1);
-			healthy_people--;
 			sick_people++;
 		}
 		prob = 0;

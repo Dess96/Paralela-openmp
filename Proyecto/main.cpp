@@ -5,6 +5,8 @@
 #include<thread>
 #include"Person.h"
 #include"Simulator.h"
+
+using namespace std::chrono;
 using namespace std;
 
 #define _CRT_SECURE_NO_WARNINGS 1 // para deshabilitar errores por uso de funciones deprecated sobre CRT o consola
@@ -14,8 +16,8 @@ bool validateProb(double, double);
 bool validatePeople(int);
 
 int main(int argc, char * argv[]) {
-	unsigned n = std::thread::hardware_concurrency();
-	int thread_num = 2 * n;
+	unsigned n = std::thread::hardware_concurrency(); //Saca la cantidad de nucleos en la computadora
+	int thread_countM = 2 * n;
 	int world_sizeM, death_durationM, ticM, number_peopleM;
 	int new_sim = 1;
 	int healthy_people;
@@ -28,7 +30,7 @@ int main(int argc, char * argv[]) {
 		infectiousnessM = -1;
 		chance_recoverM = -1;
 		number_peopleM = -1;
-		while (!validateProb(infectiousnessM, chance_recoverM) || !validatePeople(number_peopleM)) {
+		while (!validateProb(infectiousnessM, chance_recoverM) || !validatePeople(number_peopleM)) { //Pedir y validar datos
 			cout << "Ingrese el numero de personas en el mundo (de 0 a 10 000)" << endl;
 			cin >> number_peopleM;
 			cout << "Ingrese la potencia infecciosa del mundo (decimal entre 0 y 1)" << endl;
@@ -44,15 +46,12 @@ int main(int argc, char * argv[]) {
 			cout << "Ingrese la cantidad de tics" << endl;
 			cin >> ticM;
 		}
-		name = "report_";
+		name = "report_"; //Nos encargamos de crear el nombre del futuro archivo por simulacion
 		number = to_string(sims);
 		name.append(number);
 		name.append(".txt");
-#pragma omp parallel num_threads(thread_num)
-		{
-			healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM);
-			sim.update(name, healthy_people);
-		}
+		healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM, thread_countM); //Metodo inicializador
+		sim.update(name, healthy_people); //Metodo que actualiza el mundo por tic
 		cout << "Desea ver otra simulacion?" << endl;
 		cout << "1. Si   2. No" << endl;
 		cin >> new_sim;
