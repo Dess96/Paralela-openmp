@@ -9,7 +9,7 @@
 
 using namespace std;
 
-/* world_size: Tamaño del espacio bidimensional
+/* world_size: TamaÃ±o del espacio bidimensional
 * number_people: Cantidad total de personas
 * death_duration: Cuanto pasa antes de que se mueran las personas
 * tic: Cantidad de tics que dura la simulacion
@@ -35,7 +35,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 	Person p;
 #pragma omp single
 	{
-		v.resize(world_size); //Vector de vectores de tamaño world_size*world_size
+		v.resize(world_size); //Vector de vectores de tamaÃ±o world_size*world_size
 		world.resize(world_size, v);
 		peopleVec.resize(number_people);
 	}
@@ -173,9 +173,6 @@ void Simulator::changeState(int i) {
 			healthy_people--;
 			sick_people++;
 		}
-		prob = 0;
-	}
-	else {
 		prob = 0;
 	}
 }
