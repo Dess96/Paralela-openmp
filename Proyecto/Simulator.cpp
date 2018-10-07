@@ -75,7 +75,7 @@ void Simulator::update(string name, int healthy) {
 	sick_people = number_people - healthy;
 	int state, i, j, pos1, pos2;
 	for (int actual_tic = 1; actual_tic <= tic; actual_tic++) {
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(thread_count) reduction(+:sick_people, dead_people, inmune_people, healthy_people)
 		for (int k = 0; k < peopleVec.size(); k++) {
 			i = peopleVec[k].getX();
 			j = peopleVec[k].getY();
@@ -89,12 +89,6 @@ void Simulator::update(string name, int healthy) {
 			if (world[i][j] > 0) {
 				checkVec(k, i, j);
 			}
-		}
-#pragma omp single
-		{
-			sick_people -= dead_people;
-			sick_people -= inmune_people;
-			healthy_people = number_people - (sick_people + dead_people + inmune_people);
 		}
 		clear(actual_tic, name);
 	}
@@ -147,7 +141,6 @@ void Simulator::changeState(int i) {
 	double prob_infect, prob_rec;
 	int sick_time;
 	int state = peopleVec[i].getState();
-#pragma omp parallel num_threads(thread_count) reduction(+:sick_people, dead_people, inmune_people, healthy_people) private(sick_time)
 	if (state == 1) {
 		prob += infectiousness;
 		sick_time = peopleVec[i].getSick();
@@ -155,10 +148,12 @@ void Simulator::changeState(int i) {
 			prob_rec = distribution(generator);
 			if (prob_rec < chance_recover) {
 				peopleVec[i].setState(2);
+				sick_people--;
 				inmune_people++;
 			}
 			else {
 				peopleVec[i].setState(3);
+				sick_people--;
 				dead_people++;
 			}
 		}
@@ -172,6 +167,7 @@ void Simulator::changeState(int i) {
 		if (prob_infect < prob) {
 			peopleVec[i].setState(1);
 			peopleVec[i].setSick(1);
+			healthy_people--;
 			sick_people++;
 		}
 		prob = 0;
