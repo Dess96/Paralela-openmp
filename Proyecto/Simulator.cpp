@@ -116,7 +116,6 @@ int Simulator::movePos(int pos, int world_size) {
 	return pos;
 }
 
-//SOLO UN HILO
 void Simulator::checkVec(int k, int i, int j) {
 	int i2, j2, pos1, pos2;
 	for (int l = k; l < peopleVec.size(); l++) {
@@ -142,22 +141,26 @@ void Simulator::changeState(int i) {
 	int sick_time;
 	int state = peopleVec[i].getState();
 	if (state == 1) {
+#pragma omp atomic
 		prob += infectiousness;
 		sick_time = peopleVec[i].getSick();
 		if (sick_time > death_duration) {
 			prob_rec = distribution(generator);
 			if (prob_rec < chance_recover) {
 				peopleVec[i].setState(2);
+#pragma omp atomic
 				sick_people--;
 				inmune_people++;
 			}
 			else {
 				peopleVec[i].setState(3);
+#pragma omp atomic
 				sick_people--;
 				dead_people++;
 			}
 		}
 		else {
+#pragma omp atomic
 			sick_time++;
 			peopleVec[i].setSick(sick_time);
 		}
@@ -167,6 +170,7 @@ void Simulator::changeState(int i) {
 		if (prob_infect < prob) {
 			peopleVec[i].setState(1);
 			peopleVec[i].setSick(1);
+#pragma omp atomic
 			healthy_people--;
 			sick_people++;
 		}
