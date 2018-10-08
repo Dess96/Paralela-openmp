@@ -16,11 +16,12 @@ using namespace std;
 * infectiousness: Potencia infecciosan
 * chance_recover: Probabilidad de recuperacion
 * infected: Personas infectadas inicialmente*/
-int world_size, death_duration, tic, thread_count;
+int world_size, death_duration, tic, thread_count, number_people;
 int healthy_people, dead_people, sick_people, inmune_people;
-double infected, infectiousness, chance_recover, number_people;
+double infected, infectiousness, chance_recover;
 
 int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM, int thread_countM) {
+	random_device rd;
 	int perc;
 	int healthy;
 	int pos1, pos2;
@@ -31,7 +32,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 	infected = infectedM;
 	world_size = world_sizeM;
 	tic = ticM;
-	thread_count = thread_countM;
+	thread_count = 2;
 	Person p;
 #pragma omp single
 	{
@@ -45,8 +46,8 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 #pragma omp parallel for num_threads(thread_count)
 	for (int i = 0; i < perc; i++) { //Cambiamos a los infectados
 		Person p; //Se crean sanos y con su x y y
-		pos1 = rand() % world_size;
-		pos2 = rand() % world_size;
+		pos1 = rd() % world_size;
+		pos2 = rd() % world_size;
 		p.setX(pos1);
 		p.setY(pos2);
 		p.setState(1);
@@ -59,8 +60,8 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 #pragma omp parallel for num_threads(thread_count)
 	for (int j = perc; j < peopleVec.size(); j++) {
 		Person p;
-		pos1 = rand() % world_size;
-		pos2 = rand() % world_size;
+		pos1 = rd() % world_size;
+		pos2 = rd() % world_size;
 		p.setX(pos1);
 		p.setY(pos2);
 #pragma omp atomic
@@ -101,8 +102,9 @@ void Simulator::update(string name, int healthy) {
 }
 
 int Simulator::movePos(int pos, int world_size) {
+	random_device rd;
 	int movX;
-	movX = rand() % 2;
+	movX = rd() % 2;
 #pragma omp atomic
 	movX -= 1;
 #pragma omp atomic
@@ -128,6 +130,7 @@ void Simulator::checkVec(int k, int i, int j) {
 				pos2 = movePos(j, world_size);
 				peopleVec[l].setX(pos1);
 				peopleVec[l].setY(pos2);
+#pragma omp atomic
 				world[i][j]--;
 			}
 		}
@@ -172,6 +175,7 @@ void Simulator::changeState(int i) {
 			peopleVec[i].setSick(1);
 #pragma omp atomic
 			healthy_people--;
+#pragma omp atomic
 			sick_people++;
 		}
 		prob = 0;
