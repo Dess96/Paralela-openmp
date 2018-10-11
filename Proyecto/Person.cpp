@@ -6,6 +6,7 @@
 * 3: Persona muerta*/
 Person::Person() {
 	this->state = 0; //Personas nacen sanas
+	this->sick_time = 0;
 }
 
 void Person::setState(int state) {

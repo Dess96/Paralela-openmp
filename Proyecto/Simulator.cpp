@@ -43,6 +43,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 	perc = number_people * infected / 100; //Cantidad correspondiente al porcentaje dado
 	healthy = number_people - perc; //Gente sana
 	srand(time(NULL));
+//Personas enfermas
 #pragma omp parallel for num_threads(thread_count)
 	for (int i = 0; i < perc; i++) { //Cambiamos a los infectados
 		Person p; //Se crean sanos y con su x y y
@@ -56,7 +57,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 		world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
 		peopleVec[i] = p;
 	}
-
+//Personas sanas
 #pragma omp parallel for num_threads(thread_count)
 	for (int j = perc; j < peopleVec.size(); j++) {
 		Person p;
@@ -95,7 +96,7 @@ void Simulator::update(string name, int healthy) {
 			state = peopleVec[i].getState();
 			if (state == 1) {
 				sick_time = peopleVec[i].getSick();
-				if (sick_time > death_duration) {
+				if (sick_time >= death_duration) {
 					prob_rec = distribution(generator);
 					if (prob_rec < chance_recover) {
 						peopleVec[i].setState(2);
@@ -118,12 +119,12 @@ void Simulator::update(string name, int healthy) {
 				for (int j = 0; j < sick; j++) {
 					prob_infect = distribution(generator);
 					if (prob_infect < infectiousness) {
-						peopleVec[i].setState(1);
-						peopleVec[i].setSick(1);
 						isSick = 1;
 					}
 				}
 				if (isSick) {
+					peopleVec[i].setState(1);
+					peopleVec[i].setSick(1);
 					healthy_people--;
 					sick_people++;
 				}
