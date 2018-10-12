@@ -2,12 +2,12 @@
 #include"Person.h"
 #include<iostream>
 #include<random>
-#include<time.h>
-#include <fstream>
-#include<stdlib.h>
+#include<fstream>
 #include<omp.h>
+#include<chrono>
 
 using namespace std;
+using namespace std::chrono;
 
 /* world_size: Tamaño del espacio bidimensional
 * number_people: Cantidad total de personas
@@ -72,24 +72,26 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 	return healthy;
 }
 
-void Simulator::update(string name, int healthy) {
-	healthy_people = healthy;
-	sick_people = number_people - healthy;
+double Simulator::update(string name, int healthy) {
+	healthy_people = healthy; //Inicializar nos dio el numero de sanos 
+	sick_people = number_people - healthy; //Los enfermos son el resto
 	random_device generator;
 	uniform_real_distribution<double> distribution(0.0, 1.0);
 	int pos1, pos2, state, x, y, sick_time, sick;
-	int actual_tic = 1;
+	int actual_tic = 1; //Tics actuales
 	double prob_infect, prob_rec;
-	bool isSick = 0;
-	bool stable = 0;
+	double out_time = 0; //Variable que toma el tiempo de salida de datos para restarlo posteriormente
+	bool isSick = 0; //Indica si la persona se enfermo
+	bool stable = 0; //Termina el while cuando todo se estabiliza
 	do {
+		steady_clock::time_point t3 = steady_clock::now();
 #pragma omp parallel for num_threads(thread_count) reduction(+:dead_people, sick_people, inmune_people, healthy_people)
-		for (int i = 0; i < peopleVec.size(); i++) {
+		for (int i = 0; i < peopleVec.size(); i++) { //Usamos reduction para hacer las sumas por hilo en las variables globales
 			x = peopleVec[i].getX();
 			y = peopleVec[i].getY();
 #pragma omp atomic
 			world[x][y]--;
-			if (world[x][y] > 0) {
+			if (world[x][y] > 0) { //Como el mundo tiene la cantidad de personas, si despues de procesar a alguien hay mas, hay que revisar por enfermos
 #pragma omp critical
 				sick = checkVec(x, y, i);
 			}
@@ -97,7 +99,7 @@ void Simulator::update(string name, int healthy) {
 			if (state == 1) {
 				sick_time = peopleVec[i].getSick();
 				if (sick_time >= death_duration) {
-					prob_rec = distribution(generator);
+					prob_rec = distribution(generator); //Decidimos si la persona se enferma o se hace inmune
 					if (prob_rec < chance_recover) {
 						peopleVec[i].setState(2);
 						sick_people--;
@@ -109,20 +111,20 @@ void Simulator::update(string name, int healthy) {
 						dead_people++;
 					}
 				}
-				else {
+				else { //Si todavia no le toca, aumentamos el tiempo que lleva enferma
 #pragma omp atomic
 					sick_time++;
 					peopleVec[i].setSick(sick_time);
 				}
 			}
 			else if (state == 0) {
-				for (int j = 0; j < sick; j++) {
+				for (int j = 0; j < sick; j++) { //Hacemos un for por cada enfermo en la misma posicion de la persona
 					prob_infect = distribution(generator);
 					if (prob_infect < infectiousness) {
 						isSick = 1;
 					}
 				}
-				if (isSick) {
+				if (isSick) { //Si la persona se enfermo, cambiamos su estado y empezamos el conteo de tics
 					peopleVec[i].setState(1);
 					peopleVec[i].setSick(1);
 					healthy_people--;
@@ -135,22 +137,36 @@ void Simulator::update(string name, int healthy) {
 			peopleVec[i].setY(pos2);
 			isSick = 0;
 		}
-		stable = clear(actual_tic, name);
+		steady_clock::time_point t1 = steady_clock::now(); //Quitamos el tiempo de escritura de archivos del tiempo total de simulacion
+		stable = clear(actual_tic, name); //*
+		steady_clock::time_point t2 = steady_clock::now(); //*
+		duration<double> time_span = duration_cast<duration<double>>(t2 - t1); //*
+		out_time += time_span.count(); //*
 		actual_tic++;
+		steady_clock::time_point t4 = steady_clock::now(); //Tiempo por tic
+		duration<double> time_span2 = duration_cast<duration<double>>(t4 - t3);
+		steady_clock::time_point t5 = steady_clock::now(); //Quitamos el tiempo de salida de datos por pantalla del tiempo total de simulacion
+		std::cout << endl << "Duracion tic " <<actual_tic<< " "<< time_span2.count() << " segundos."; //*
+		std::cout << std::endl; //*
+		steady_clock::time_point t6 = steady_clock::now(); //*
+		duration<double> time_span3 = duration_cast<duration<double>>(t6 - t5); //*
+		out_time += time_span3.count(); //*
 	} while (!stable && (actual_tic <= tic));
+	cout << std::endl;
 	cout << "Archivo generado" << endl;
-	peopleVec.clear();
+	peopleVec.clear(); //Se limpian las ed's para nuevas simulaciones. Ademas se limpian las variables
 	world.clear();
 	dead_people = sick_people = healthy_people = inmune_people = 0;
+	return out_time;
 }
 
 int Simulator::checkVec(int pos1, int pos2, int j) {
 	int pos3, pos4, state;
 	int sick = 0;
-	for (int i = j; i < peopleVec.size(); i++) {
+	for (int i = j; i < peopleVec.size(); i++) { 
 		pos3 = peopleVec[i].getX();
 		pos4 = peopleVec[i].getY();
-		if ((pos1 == pos3) && (pos2 == pos4)) {
+		if ((pos1 == pos3) && (pos2 == pos4)) { //Si hay otra persona en la misma posicion de los parametros y esta enferma aumentamos la cantidad de enfermos
 			state = peopleVec[i].getState();
 			if (state == 1) {
 				sick++;
@@ -166,13 +182,9 @@ int Simulator::movePos(int pos, int world_size) {
 	movX = rd() % 2;
 #pragma omp atomic
 	movX -= 1;
-	if (movX == 0) {
-#pragma omp atomic
-		movX++;
-	}
 #pragma omp atomic
 	pos += movX;
-	if (pos < 0) {
+	if (pos < 0) { //Para que no se salga de la matriz
 		pos = world_size - 1;
 	}
 	else if (pos >= world_size) {
@@ -199,7 +211,7 @@ bool Simulator::clear(int actual_tic, string name) {
 	}
 	else {
 #pragma omp parallel for num_threads(thread_count)
-		for (int i = 0; i < peopleVec.size(); i++) {
+		for (int i = 0; i < peopleVec.size(); i++) { //Volvemos a llenar la matriz despues de haber procesado a todos en el tic anterior
 			x = peopleVec[i].getX();
 			y = peopleVec[i].getY();
 #pragma omp atomic

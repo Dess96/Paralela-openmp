@@ -15,7 +15,7 @@ private:
 	vector<Person> peopleVec; //Vector que contiene a las personas
 public:
 	int initialize(int, double, double, int, double, int, int, int); //Inicializa el mundo y los parametros
-	void update(string, int); //Actualiza el mundo por tic
+	double update(string, int); //Actualiza el mundo por tic
 	int movePos(int, int); //Mueve a la persona de posicion
 	bool clear(int, string); //Crea el archivo
 	int checkVec(int, int, int);

@@ -1,13 +1,14 @@
-#include <stdlib.h>
-#include <iostream>
+#include<stdlib.h>
+#include<iostream>
 #include<string>
 #include<omp.h>
 #include<thread>
+#include<chrono>
 #include"Person.h"
 #include"Simulator.h"
 
-using namespace std::chrono;
 using namespace std;
+using namespace std::chrono;
 
 #define _CRT_SECURE_NO_WARNINGS 1 // para deshabilitar errores por uso de funciones deprecated sobre CRT o consola
 #pragma warning(disable : 4996)
@@ -18,13 +19,12 @@ bool validatePeople(int);
 int main(int argc, char * argv[]) {
 	unsigned n = std::thread::hardware_concurrency(); //Saca la cantidad de nucleos en la computadora
 	int thread_countM = 2 * n;
-	int world_sizeM, death_durationM, ticM, number_peopleM;
+	int world_sizeM, death_durationM, ticM, number_peopleM, healthy_people;
 	int new_sim = 1;
-	int healthy_people;
 	int sims = 1;
+	double infectedM, infectiousnessM, chance_recoverM, arch_time;
 	string number;
 	string name = " ";
-	double infectedM, infectiousnessM, chance_recoverM;
 	Simulator sim;
 	do {
 		infectiousnessM = -1;
@@ -46,12 +46,19 @@ int main(int argc, char * argv[]) {
 			cout << "Ingrese la cantidad de tics" << endl;
 			cin >> ticM;
 		}
+		cout << "Se usaran " << thread_countM << " hilos en esta simulacion" << endl;
 		name = "report_"; //Nos encargamos de crear el nombre del futuro archivo por simulacion
 		number = to_string(sims);
 		name.append(number);
 		name.append(".txt");
+		steady_clock::time_point t1 = steady_clock::now();
 		healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM, thread_countM); //Metodo inicializador
-		sim.update(name, healthy_people); //Metodo que actualiza el mundo por tic
+		arch_time = sim.update(name, healthy_people); //Metodo que actualiza el mundo por tic
+		steady_clock::time_point t2 = steady_clock::now();
+		duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+		std::cout << endl << "Duracion " << (time_span.count())-arch_time << " segundos.";
+		std::cout << std::endl;
+		cout << endl;
 		cout << "Desea ver otra simulacion?" << endl;
 		cout << "1. Si   2. No" << endl;
 		cin >> new_sim;
