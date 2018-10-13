@@ -27,6 +27,14 @@ const char *fragmentShaderSource = "#version 330 core\n"
 "   FragColor = vec4(ourColor, 1.0f);\n"
 "}\n\0";
 
+struct point {
+	GLfloat x;
+	GLfloat y;
+	GLfloat z;
+	GLfloat R;
+	GLfloat G;
+	GLfloat B;
+};
 
 int main(){
 	//VENTANA 
@@ -47,6 +55,19 @@ int main(){
 	}
 	//GLAD
 
+	point graph[4000];
+	double x = -1.0;
+	double y = 0.1;
+	for (int i = 0; i < 4000; i++) {
+		graph[i].x = x;
+		graph[i].y = y;
+		graph[i].z = 0.0;
+		graph[i].R = 0.0;
+		graph[i].G = 0.0;
+		graph[i].B = 1.0;
+		x+= 10;
+		y++;
+	}
 	//VERTEX POSICIONES X, Y, Z, W
 	int vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
@@ -66,17 +87,7 @@ int main(){
 	//BORRAR OBJETOS
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
-	float vertices[] = {
-		//posiciones		//colores
-		 0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  // bottom right
-		 0.0, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom left
-		 0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f   // top 
-	};
-	//CAMBIAR POSICION
-	unsigned int indices[] = {  
-		0, 1, 3,  //PRIMER TRIANGULO
-		0, 2, 3   //SEGUNDO TRIANGULO
-	};
+	
 	//BUFFERS
 	unsigned int VBO, VAO, EBO;
 	glGenVertexArrays(1, &VAO);
@@ -84,9 +95,9 @@ int main(){
 	glGenBuffers(1, &EBO);
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(graph), graph, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(graph), graph, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 	// color attribute
@@ -97,11 +108,11 @@ int main(){
 	//RENDERIZADO
 	while (!glfwWindowShouldClose(window)){
 		processInput(window);
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		// PRIMER TRIANGULO
 		glBindVertexArray(VAO); 
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawArrays(GL_LINE_STRIP, 0, 3);
 	//	glDrawElements(GL_LINE_STRIP, 6, GL_UNSIGNED_INT, 0);
 		glfwSwapBuffers(window);
 		glfwPollEvents();
