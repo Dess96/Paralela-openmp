@@ -53,14 +53,14 @@ int main(int argc, char * argv[]) {
 		number = to_string(sims);
 		name.append(number);
 		name.append(".txt");
-//		steady_clock::time_point t1 = steady_clock::now();
+		//		steady_clock::time_point t1 = steady_clock::now();
 		healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM, thread_countM); //Metodo inicializador
 		arch_time = sim.update(name, healthy_people); //Metodo que actualiza el mundo por tic
 		sim.graphic();
-/*		steady_clock::time_point t2 = steady_clock::now();
-		duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
-		std::cout << endl << "Duracion " << (time_span.count())-arch_time << " segundos.";
-		std::cout << std::endl;*/
+		/*		steady_clock::time_point t2 = steady_clock::now();
+				duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+				std::cout << endl << "Duracion " << (time_span.count())-arch_time << " segundos.";
+				std::cout << std::endl;*/
 		cout << endl;
 		cout << "Desea ver otra simulacion?" << endl;
 		cout << "1. Si   2. No" << endl;

@@ -9,8 +9,6 @@
 #include <glad/glad.h> 
 #include <GLFW\glfw3.h>
 
-GLint attribute_coord2d;
-
 using namespace std;
 using namespace std::chrono;
 
@@ -25,6 +23,29 @@ queue_lk< int > msg_queues;
 int world_size, death_duration, tic, thread_count, number_people;
 int healthy_people, dead_people, sick_people, inmune_people;
 double infected, infectiousness, chance_recover;
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_HEIGHT = 600;
+
+const char *vertexShaderSource = "#version 330 core\n"
+"layout (location = 0) in vec3 aPos;\n"
+"layout (location = 1) in vec3 aColor;\n"
+"out vec3 ourColor;\n"
+"void main()\n"
+"{\n"
+"   gl_Position = vec4(aPos, 1.0);\n"
+"   ourColor = aColor;\n"
+"}\0";
+
+const char *fragmentShaderSource = "#version 330 core\n"
+"out vec4 FragColor;\n"
+"in vec3 ourColor;\n"
+"void main()\n"
+"{\n"
+"   FragColor = vec4(ourColor, 1.0f);\n"
+"}\n\0";
 
 int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM, int thread_countM) {
 	random_device rd;
@@ -49,7 +70,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 	perc = number_people * infected / 100; //Cantidad correspondiente al porcentaje dado
 	healthy = number_people - perc; //Gente sana
 	srand(time(NULL));
-//Personas enfermas
+	//Personas enfermas
 #pragma omp parallel for num_threads(thread_count)
 	for (int i = 0; i < perc; i++) { //Cambiamos a los infectados
 		Person p; //Se crean sanos y con su x y y
@@ -63,7 +84,7 @@ int Simulator::initialize(int number_peopleM, double infectiousnessM, double cha
 		world[pos1][pos2]++; //Metemos a la persona en la lista de la posicion correspondiente	
 		peopleVec[i] = p;
 	}
-//Personas sanas
+	//Personas sanas
 #pragma omp parallel for num_threads(thread_count)
 	for (int j = perc; j < peopleVec.size(); j++) {
 		Person p;
@@ -83,7 +104,8 @@ double Simulator::update(string name, int healthy) {
 	sick_people = number_people - healthy; //Los enfermos son el resto
 	random_device generator;
 	uniform_real_distribution<double> distribution(0.0, 1.0);
-	int pos1, pos2, state, x, y, sick_time, sick;
+	int pos1, pos2, state, x, y, sick_time;
+	int sick = 0;
 	int actual_tic = 1; //Tics actuales
 	double prob_infect, prob_rec;
 	double out_time = 0; //Variable que toma el tiempo de salida de datos para restarlo posteriormente
@@ -161,12 +183,13 @@ double Simulator::update(string name, int healthy) {
 int Simulator::checkVec(int pos1, int pos2, int j) {
 	int pos3, pos4, state;
 	int sick = 0;
-	for (int i = j; i < peopleVec.size(); i++) { 
+	for (int i = j; i < peopleVec.size(); i++) {
 		pos3 = peopleVec[i].getX();
 		pos4 = peopleVec[i].getY();
 		if ((pos1 == pos3) && (pos2 == pos4)) { //Si hay otra persona en la misma posicion de los parametros y esta enferma aumentamos la cantidad de enfermos
 			state = peopleVec[i].getState();
 			if (state == 1) {
+#pragma omp atomic
 				sick++;
 			}
 		}
@@ -205,11 +228,13 @@ bool Simulator::clear(int actual_tic, string name) {
 		<< " Personas enfermas total " << sick_people << ", promedio " << sick_people / actual_tic << ", porcentaje " << number_people * sick_people / 100 << endl
 		<< " Personas inmunes total " << inmune_people << ", promedio " << inmune_people / actual_tic << ", porcentaje " << number_people * inmune_people / 100 << endl;
 
-		file.close();//Hacer archivo
+	file.close();//Hacer archivo
 
-		msg_queues.push(healthy_msg);
-		msg_queues.push(sick_msg);
-		msg_queues.push(inmune_msg);
+	msg_queues.set_lock();
+	msg_queues.push(healthy_msg);
+	msg_queues.push(sick_msg);
+	msg_queues.push(inmune_msg);
+	msg_queues.unset_lock();
 
 	if (sick_people == 0) {
 		stable = 1;
@@ -226,10 +251,104 @@ bool Simulator::clear(int actual_tic, string name) {
 	return stable;
 }
 
+struct point {
+	GLfloat x;
+	GLfloat y;
+	GLfloat z;
+	GLfloat R;
+	GLfloat G;
+	GLfloat B;
+};
+
+/* * Cola * *
+ * * Sanos * *
+ * * Enfermos * *
+ * *  Inmunes * */
 void Simulator::graphic() {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	GLFWwindow* window = glfwCreateWindow(640, 480, "Data", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Data", NULL, NULL);
+	glfwMakeContextCurrent(window);
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	//VENTANA
+
+	//GLAD
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	{
+		std::cout << "Fallo en GLAD" << std::endl;
+	}
+	point graph[10000];
+	double coordy;
+	double coordx = -1.0;
+	double msg;
+	int i = 0;
+	while (!(msg_queues.empty())) {
+		msg = msg_queues.front().msg;
+		msg_queues.pop();
+		coordy = msg / number_people;
+		graph[i].x = coordx;
+		graph[i].y = coordy;
+		graph[i].z = 0.0;
+		coordx += 0.01;
+	}
+
+	//VERTEX POSICIONES X, Y, Z, W
+	int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+	glCompileShader(vertexShader);
+
+	//FRAGMENT COLORES RGBA (opacidad)
+	int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+	glCompileShader(fragmentShader);
+
+	//JUNTAR LOS SHEDERS EN UN NUEVO OBJETO
+	int shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
+
+	//BORRAR OBJETOS
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+
+	//BUFFERS
+	unsigned int VBO, VAO, EBO;
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	glGenBuffers(1, &EBO);
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(graph), graph, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(graph), graph, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+	// color attribute
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+	glUseProgram(shaderProgram);
+
+	//RENDERIZADO
+	while (!glfwWindowShouldClose(window)) {
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		// PRIMER TRIANGULO
+		glBindVertexArray(VAO);
+		glDrawArrays(GL_LINE_STRIP, 0, 3);
+		glfwSwapBuffers(window);
+		glfwPollEvents();
+	}
+
+	//BORRAR BUFFERS
+	glDeleteVertexArrays(1, &VAO);
+	glDeleteBuffers(1, &VBO);
+	glDeleteBuffers(1, &EBO);
+	glfwTerminate();
+}
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+	glViewport(0, 0, width, height);
 }
