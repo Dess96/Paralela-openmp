@@ -19,6 +19,9 @@ public:
 	int movePos(int, int); //Mueve a la persona de posicion
 	bool clear(int, string); //Crea el archivo
 	int checkVec(int, int, int);
+	int init_resources();
+	void display();
+	void free_resources();
 	void graphic();
 };
 

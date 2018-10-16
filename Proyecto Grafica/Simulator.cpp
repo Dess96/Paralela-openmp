@@ -6,8 +6,11 @@
 #include<fstream>
 #include<omp.h>
 #include<chrono>
-#include <glad/glad.h> 
-#include <GLFW\glfw3.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <GL/glew.h>
+#include <GL/glut.h>
 
 using namespace std;
 using namespace std::chrono;
@@ -19,33 +22,20 @@ using namespace std::chrono;
 * infectiousness: Potencia infecciosan
 * chance_recover: Probabilidad de recuperacion
 * infected: Personas infectadas inicialmente*/
-queue_lk< int > msg_queues;
 int world_size, death_duration, tic, thread_count, number_people;
 int healthy_people, dead_people, sick_people, inmune_people;
 double infected, infectiousness, chance_recover;
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+queue_lk< int > msg_queues;
+GLuint program;
+GLint attribute_coord2d;
 
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+struct point {
+	GLfloat x;
+	GLfloat y;
+};
 
-const char *vertexShaderSource = "#version 330 core\n"
-"layout (location = 0) in vec3 aPos;\n"
-"layout (location = 1) in vec3 aColor;\n"
-"out vec3 ourColor;\n"
-"void main()\n"
-"{\n"
-"   gl_Position = vec4(aPos, 1.0);\n"
-"   ourColor = aColor;\n"
-"}\0";
-
-const char *fragmentShaderSource = "#version 330 core\n"
-"out vec4 FragColor;\n"
-"in vec3 ourColor;\n"
-"void main()\n"
-"{\n"
-"   FragColor = vec4(ourColor, 1.0f);\n"
-"}\n\0";
+GLuint vbo;
 
 int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM, int thread_countM) {
 	random_device rd;
@@ -104,8 +94,7 @@ double Simulator::update(string name, int healthy) {
 	sick_people = number_people - healthy; //Los enfermos son el resto
 	random_device generator;
 	uniform_real_distribution<double> distribution(0.0, 1.0);
-	int pos1, pos2, state, x, y, sick_time;
-	int sick = 0;
+	int pos1, pos2, state, x, y, sick_time, sick;
 	int actual_tic = 1; //Tics actuales
 	double prob_infect, prob_rec;
 	double out_time = 0; //Variable que toma el tiempo de salida de datos para restarlo posteriormente
@@ -189,7 +178,6 @@ int Simulator::checkVec(int pos1, int pos2, int j) {
 		if ((pos1 == pos3) && (pos2 == pos4)) { //Si hay otra persona en la misma posicion de los parametros y esta enferma aumentamos la cantidad de enfermos
 			state = peopleVec[i].getState();
 			if (state == 1) {
-#pragma omp atomic
 				sick++;
 			}
 		}
@@ -215,9 +203,10 @@ int Simulator::movePos(int pos, int world_size) {
 }
 
 bool Simulator::clear(int actual_tic, string name) {
-	queue_lk<int>::msg_t<int> healthy_msg(healthy_people);
-	queue_lk<int>::msg_t<int> sick_msg(sick_people);
-	queue_lk<int>::msg_t<int> inmune_msg(inmune_people);
+	queue_lk<int>::msg_t<int> healthy_msg(0, healthy_people);
+	queue_lk<int>::msg_t<int> sick_msg(1, sick_people);
+	queue_lk<int>::msg_t<int> inmune_msg(2, inmune_people);
+	queue_lk<int>::msg_t<int> dead_msg(3, dead_people);
 	int x, y;
 	bool stable = 0;
 	ofstream file;
@@ -232,8 +221,9 @@ bool Simulator::clear(int actual_tic, string name) {
 
 	msg_queues.set_lock();
 	msg_queues.push(healthy_msg);
-	msg_queues.push(sick_msg);
+/*	msg_queues.push(sick_msg);
 	msg_queues.push(inmune_msg);
+	msg_queues.push(dead_msg);*/
 	msg_queues.unset_lock();
 
 	if (sick_people == 0) {
@@ -251,104 +241,55 @@ bool Simulator::clear(int actual_tic, string name) {
 	return stable;
 }
 
-struct point {
-	GLfloat x;
-	GLfloat y;
-	GLfloat z;
-	GLfloat R;
-	GLfloat G;
-	GLfloat B;
-};
-
-/* * Cola * *
- * * Sanos * *
- * * Enfermos * *
- * *  Inmunes * */
-void Simulator::graphic() {
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Data", NULL, NULL);
-	glfwMakeContextCurrent(window);
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	//VENTANA
-
-	//GLAD
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-	{
-		std::cout << "Fallo en GLAD" << std::endl;
-	}
-	point graph[10000];
-	double coordy;
+int Simulator::init_resources() {
+	double coordy, msg;
 	double coordx = -1.0;
-	double msg;
+	int rank;
 	int i = 0;
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	point graph[10000];
 	while (!(msg_queues.empty())) {
 		msg = msg_queues.front().msg;
+		rank = msg_queues.front().src_rank;
 		msg_queues.pop();
 		coordy = msg / number_people;
 		graph[i].x = coordx;
 		graph[i].y = coordy;
-		graph[i].z = 0.0;
-		coordx += 0.01;
+		if (rank == 0) {
+			glColor3b(64, 64, 32);
+		}
+		coordx += 0.03;
+		i++;
 	}
+	glBufferData(GL_ARRAY_BUFFER, sizeof graph, graph, GL_STATIC_DRAW);
 
-	//VERTEX POSICIONES X, Y, Z, W
-	int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	glCompileShader(vertexShader);
-
-	//FRAGMENT COLORES RGBA (opacidad)
-	int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	glCompileShader(fragmentShader);
-
-	//JUNTAR LOS SHEDERS EN UN NUEVO OBJETO
-	int shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-
-	//BORRAR OBJETOS
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
-
-	//BUFFERS
-	unsigned int VBO, VAO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &EBO);
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(graph), graph, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(graph), graph, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	// color attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-	glUseProgram(shaderProgram);
-
-	//RENDERIZADO
-	while (!glfwWindowShouldClose(window)) {
-		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		// PRIMER TRIANGULO
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_LINE_STRIP, 0, 3);
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-	}
-
-	//BORRAR BUFFERS
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
-	glfwTerminate();
+	return 1;
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-	glViewport(0, 0, width, height);
+void Simulator::display() {
+	glUseProgram(program);
+
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+	glEnableVertexAttribArray(attribute_coord2d);
+	glVertexAttribPointer(attribute_coord2d, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glDrawArrays(GL_LINE_STRIP, 0, 10000);
+	glutSwapBuffers();
+}
+
+void Simulator::free_resources() {
+	glDeleteProgram(program);
+}
+
+void Simulator::graphic() {
+	if (init_resources()) {
+		display();
+		glutMainLoop();
+	}
+	free_resources();
+	msg_queues.~queue_lk();
 }
