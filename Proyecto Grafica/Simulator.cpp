@@ -26,16 +26,10 @@ int world_size, death_duration, tic, thread_count, number_people;
 int healthy_people, dead_people, sick_people, inmune_people;
 double infected, infectiousness, chance_recover;
 
-queue_lk< int > msg_queues;
-GLuint program;
-GLint attribute_coord2d;
+queue_lk< int > msg_queuesH;
+queue_lk< int > msg_queuesS;
+queue_lk< int > msg_queuesI;
 
-struct point {
-	GLfloat x;
-	GLfloat y;
-};
-
-GLuint vbo;
 
 int Simulator::initialize(int number_peopleM, double infectiousnessM, double chance_recoverM, int death_durationM, double infectedM, int world_sizeM, int ticM, int thread_countM) {
 	random_device rd;
@@ -203,10 +197,9 @@ int Simulator::movePos(int pos, int world_size) {
 }
 
 bool Simulator::clear(int actual_tic, string name) {
-	queue_lk<int>::msg_t<int> healthy_msg(0, healthy_people);
-	queue_lk<int>::msg_t<int> sick_msg(1, sick_people);
-	queue_lk<int>::msg_t<int> inmune_msg(2, inmune_people);
-	queue_lk<int>::msg_t<int> dead_msg(3, dead_people);
+	queue_lk<int>::msg_t<int> msgH(healthy_people);
+	queue_lk<int>::msg_t<int> msgS(sick_people);
+	queue_lk<int>::msg_t<int> msgI(dead_people);
 	int x, y;
 	bool stable = 0;
 	ofstream file;
@@ -219,12 +212,17 @@ bool Simulator::clear(int actual_tic, string name) {
 
 	file.close();//Hacer archivo
 
-	msg_queues.set_lock();
-	msg_queues.push(healthy_msg);
-/*	msg_queues.push(sick_msg);
-	msg_queues.push(inmune_msg);
-	msg_queues.push(dead_msg);*/
-	msg_queues.unset_lock();
+	msg_queuesH.set_lock();
+	msg_queuesH.push(msgH);
+	msg_queuesH.unset_lock();
+
+	msg_queuesS.set_lock();
+	msg_queuesS.push(msgS);
+	msg_queuesS.unset_lock();
+
+	msg_queuesI.set_lock();
+	msg_queuesI.push(msgS);
+	msg_queuesI.unset_lock();
 
 	if (sick_people == 0) {
 		stable = 1;
@@ -241,55 +239,55 @@ bool Simulator::clear(int actual_tic, string name) {
 	return stable;
 }
 
-int Simulator::init_resources() {
-	double coordy, msg;
-	double coordx = -1.0;
-	int rank;
-	int i = 0;
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	point graph[10000];
-	while (!(msg_queues.empty())) {
-		msg = msg_queues.front().msg;
-		rank = msg_queues.front().src_rank;
-		msg_queues.pop();
-		coordy = msg / number_people;
-		graph[i].x = coordx;
-		graph[i].y = coordy;
-		if (rank == 0) {
-			glColor3b(64, 64, 32);
-		}
-		coordx += 0.03;
-		i++;
-	}
-	glBufferData(GL_ARRAY_BUFFER, sizeof graph, graph, GL_STATIC_DRAW);
-
-	return 1;
-}
-
-void Simulator::display() {
-	glUseProgram(program);
-
+void Simulator::graphic(){
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-	glEnableVertexAttribArray(attribute_coord2d);
-	glVertexAttribPointer(attribute_coord2d, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glDrawArrays(GL_LINE_STRIP, 0, 10000);
-	glutSwapBuffers();
-}
-
-void Simulator::free_resources() {
-	glDeleteProgram(program);
-}
-
-void Simulator::graphic() {
-	if (init_resources()) {
-		display();
-		glutMainLoop();
+	double msg, coordy;
+	double coordx = -1.0;
+	int rank;
+	glBegin(GL_LINE_STRIP);
+	glLineWidth(2);
+	glColor3f(0.0, 1.0, 0.0);
+	glVertex2f(-1.0, 1.0);
+	while (!(msg_queuesH.empty())) {
+		msg = msg_queuesH.front().msg;
+		rank = msg_queuesH.front().src_rank;
+		msg_queuesH.pop();
+		coordy = msg / number_people;
+		coordx += 0.01;
+		glVertex2f(coordx, coordy);
 	}
-	free_resources();
-	msg_queues.~queue_lk();
+	glVertex2f(1.0, -1.0);
+	glEnd();
+
+	glBegin(GL_LINE_STRIP);
+	glLineWidth(2);
+	glColor3f(1.0, 0.0, 0.0);
+	glVertex2f(-1.0, -1.0);
+	while (!(msg_queuesS.empty())) {
+		msg = msg_queuesS.front().msg;
+		rank = msg_queuesS.front().src_rank;
+		msg_queuesS.pop();
+		coordy = msg / number_people;
+		coordx += 0.01;
+		glVertex2f(coordx, coordy);
+	}
+	glVertex2f(1.0, -1.0);
+	glEnd();
+
+	glBegin(GL_LINE_STRIP);
+	glLineWidth(2);
+	glColor3f(0.5, 0.5, 0.5);
+	glVertex2f(-1.0, -1.0);
+	while (!(msg_queuesI.empty())) {
+		msg = msg_queuesI.front().msg;
+		rank = msg_queuesI.front().src_rank;
+		msg_queuesI.pop();
+		coordy = msg / number_people;
+		coordx += 0.02;
+		glVertex2f(coordx, coordy);
+	}
+	glEnd();
+	glFlush();
+	glutSwapBuffers();
 }

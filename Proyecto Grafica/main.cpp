@@ -19,6 +19,7 @@ using namespace std::chrono;
 
 bool validateProb(double, double);
 bool validatePeople(int);
+void display();
 
 int main(int argc, char *argv[]) {
 	unsigned n = std::thread::hardware_concurrency(); //Saca la cantidad de nucleos en la computadora
@@ -62,9 +63,8 @@ int main(int argc, char *argv[]) {
 		glutInitDisplayMode(GLUT_RGB);
 		glutInitWindowSize(640, 480);
 		glutCreateWindow("Data");
-
-		GLenum glew_status = glewInit();
 		sim.graphic();
+		glutMainLoop();
 		cout << endl;
 		cout << "Desea ver otra simulacion?" << endl;
 		cout << "1. Si   2. No" << endl;
