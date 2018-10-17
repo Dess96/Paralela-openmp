@@ -26,48 +26,44 @@ int main(int argc, char *argv[]) {
 	string number;
 	string name = " ";
 	Simulator sim;
-	do {
-		infectiousnessM = -1;
-		chance_recoverM = -1;
-		number_peopleM = -1;
-		while (!validateProb(infectiousnessM, chance_recoverM) || !validatePeople(number_peopleM)) { //Pedir y validar datos
-			cout << "Ingrese el numero de personas en el mundo (de 0 a 10 000)" << endl;
-			cin >> number_peopleM;
-			cout << "Ingrese la potencia infecciosa del mundo (decimal entre 0 y 1)" << endl;
-			cin >> infectiousnessM;
-			cout << "Ingrese la probabilidad de recuperacion (decimal entre 0 y 1)" << endl;
-			cin >> chance_recoverM;
-			cout << "Ingrese el tiempo maximo que puede vivir una persona infectada" << endl;
-			cin >> death_durationM;
-			cout << "Ingrese el porcentaje de personas infectadas inicialmente" << endl;
-			cin >> infectedM;
-			cout << "Ingrese el tamano del espacio bidimensional" << endl;
-			cin >> world_sizeM;
-			cout << "Ingrese la cantidad de tics" << endl;
-			cin >> ticM;
-		}
-		cout << "Se usaran " << thread_countM << " hilos en esta simulacion" << endl;
-		name = "report_"; //Nos encargamos de crear el nombre del futuro archivo por simulacion
-		number = to_string(sims);
-		name.append(number);
-		name.append(".txt");
-		healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM, thread_countM); //Metodo inicializador
-		arch_time = sim.update(name, healthy_people); //Metodo que actualiza el mundo por tic
-		//GRAFICACION
-		glutInit(&argc, argv);
-		glutInitDisplayMode(GLUT_RGB);
-		glutInitWindowSize(640, 480);
-		glutCreateWindow("Data");
-		sim.graphic();
-		glutMainLoop();
-		//!GRAFICACION
-		cout << endl;
-		cout << "Desea ver otra simulacion?" << endl;
-		cout << "1. Si   2. No" << endl;
-		cin >> new_sim;
-		sims++;
-		name = " ";
-	} while (new_sim == 1);
+	infectiousnessM = -1;
+	chance_recoverM = -1;
+	number_peopleM = -1;
+	while (!validateProb(infectiousnessM, chance_recoverM) || !validatePeople(number_peopleM)) { //Pedir y validar datos
+		cout << "Ingrese el numero de personas en el mundo (de 0 a 10 000)" << endl;
+		cin >> number_peopleM;
+		cout << "Ingrese la potencia infecciosa del mundo (decimal entre 0 y 1)" << endl;
+		cin >> infectiousnessM;
+		cout << "Ingrese la probabilidad de recuperacion (decimal entre 0 y 1)" << endl;
+		cin >> chance_recoverM;
+		cout << "Ingrese el tiempo maximo que puede vivir una persona infectada" << endl;
+		cin >> death_durationM;
+		cout << "Ingrese el porcentaje de personas infectadas inicialmente" << endl;
+		cin >> infectedM;
+		cout << "Ingrese el tamano del espacio bidimensional" << endl;
+		cin >> world_sizeM;
+		cout << "Ingrese la cantidad de tics" << endl;
+		cin >> ticM;
+	}
+	cout << "Se usaran " << thread_countM << " hilos en esta simulacion" << endl;
+	name = "report_"; //Nos encargamos de crear el nombre del futuro archivo por simulacion
+	number = to_string(sims);
+	name.append(number);
+	name.append(".txt");
+	healthy_people = sim.initialize(number_peopleM, infectiousnessM, chance_recoverM, death_durationM, infectedM, world_sizeM, ticM, thread_countM); //Metodo inicializador
+	arch_time = sim.update(name, healthy_people); //Metodo que actualiza el mundo por tic
+	//GRAFICACION
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGB);
+	glutInitWindowSize(640, 480);
+	glutCreateWindow("Data");
+	sim.graphic();
+	glutMainLoop();
+	//!GRAFICACION
+	cout << endl;
+	cout << "Fin del programa" << endl;
+	sims++;
+	name = " ";
 	sim.destructor();
 	cin >> number_peopleM; //Para que no se cierre
 	return 0;

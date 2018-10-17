@@ -20,7 +20,7 @@ public:
 	void clear(int, string); //Crea el archivo
 	int checkVec(int, int, int); //Se chequea si hay enfermos en la misma posicion de la persona
 	void graphic(); //Graficacion
-	void destructor();
+	void destructor(); //Destruir ed's
 };
 
 #endif // !Simulador

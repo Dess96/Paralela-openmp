@@ -193,9 +193,9 @@ int Simulator::movePos(int pos, int world_size) {
 }
 
 void Simulator::clear(int actual_tic, string name) {
-	queue_lk<int>::msg_t<int> msgH(healthy_people);
-	queue_lk<int>::msg_t<int> msgS(sick_people);
-	queue_lk<int>::msg_t<int> msgI(dead_people);
+	queue_lk<int>::msg_t<int> msgH(healthy_people); //Cola gente sana
+	queue_lk<int>::msg_t<int> msgS(sick_people); //Cola gente enferma
+	queue_lk<int>::msg_t<int> msgI(dead_people); //Cola gente inmune
 	int x, y;
 	bool stable = 0;
 	ofstream file;
@@ -212,6 +212,7 @@ void Simulator::clear(int actual_tic, string name) {
 		file.close();//Hacer archivo
 	}
 
+	//Se usan candados para que varios hilos no intenten llenar la cola a la vez
 	msg_queuesH.set_lock();
 	msg_queuesH.push(msgH);
 	msg_queuesH.unset_lock();
@@ -225,22 +226,25 @@ void Simulator::clear(int actual_tic, string name) {
 	msg_queuesI.unset_lock();
 
 #pragma omp parallel for num_threads(thread_count)
-		for (int i = 0; i < peopleVec.size(); i++) { //Volvemos a llenar la matriz despues de haber procesado a todos en el tic anterior
-			x = peopleVec[i].getX();
-			y = peopleVec[i].getY();
+	for (int i = 0; i < peopleVec.size(); i++) { //Volvemos a llenar la matriz despues de haber procesado a todos en el tic anterior
+		x = peopleVec[i].getX();
+		y = peopleVec[i].getY();
 #pragma omp atomic
-			world[x][y]++;
-		}
+		world[x][y]++;
+	}
 }
 
-void Simulator::graphic(){
+void Simulator::graphic() {
 #pragma omp parallel num_threads(1)
+	//PANTALLA
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
+	//PANTALLA
 	double msg;
 	double coordy;
 	double coordx = -1.0;
 	int rank;
+	//LINEA SANOS
 	glBegin(GL_LINE_STRIP);
 	glLineWidth(2);
 	glColor3f(0.0, 1.0, 0.0);
@@ -248,7 +252,6 @@ void Simulator::graphic(){
 	while (!(msg_queuesH.empty())) {
 		coordy = 1.0;
 		msg = msg_queuesH.front().msg;
-		cout << msg << " sanos" << endl;
 		rank = msg_queuesH.front().src_rank;
 		msg_queuesH.pop();
 		coordy = msg / number_people;
@@ -257,6 +260,7 @@ void Simulator::graphic(){
 	}
 	glEnd();
 
+	//LINEA INFECTADOS
 	glBegin(GL_LINE_STRIP);
 	glLineWidth(2);
 	glColor3f(1.0, 0.0, 0.0);
@@ -264,7 +268,6 @@ void Simulator::graphic(){
 	while (!(msg_queuesS.empty())) {
 		msg = msg_queuesS.front().msg;
 		rank = msg_queuesS.front().src_rank;
-		cout << msg << " enfermos" << endl;
 		msg_queuesS.pop();
 		coordy = msg / number_people;
 		coordx += 0.01;
@@ -272,6 +275,7 @@ void Simulator::graphic(){
 	}
 	glEnd();
 
+	//LINEA INMUNES
 	glBegin(GL_LINE_STRIP);
 	glLineWidth(2);
 	glColor3f(0.5, 0.5, 0.5);
@@ -279,7 +283,6 @@ void Simulator::graphic(){
 	while (!(msg_queuesI.empty())) {
 		msg = msg_queuesI.front().msg;
 		rank = msg_queuesI.front().src_rank;
-		cout << msg << " inmunes" << endl;
 		msg_queuesI.pop();
 		coordy = msg / number_people;
 		coordx += 0.01;
@@ -288,12 +291,14 @@ void Simulator::graphic(){
 	glEnd();
 	glFlush();
 	glutSwapBuffers();
+	//Destruir las colas
 	msg_queuesH.~queue_lk();
 	msg_queuesS.~queue_lk();
 	msg_queuesI.~queue_lk();
 }
 
 void Simulator::destructor() {
+	//Destruir estructuras de datos
 #pragma omp single
 	{
 		peopleVec.~vector();
