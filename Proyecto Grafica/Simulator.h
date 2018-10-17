@@ -17,9 +17,10 @@ public:
 	int initialize(int, double, double, int, double, int, int, int); //Inicializa el mundo y los parametros
 	double update(string, int); //Actualiza el mundo por tic
 	int movePos(int, int); //Mueve a la persona de posicion
-	bool clear(int, string); //Crea el archivo
-	int checkVec(int, int, int);
-	void graphic();
+	void clear(int, string); //Crea el archivo
+	int checkVec(int, int, int); //Se chequea si hay enfermos en la misma posicion de la persona
+	void graphic(); //Graficacion
+	void destructor();
 };
 
 #endif // !Simulador

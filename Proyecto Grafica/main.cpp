@@ -3,10 +3,6 @@
 #include<omp.h>
 #include<thread>
 #include<chrono>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <GL/glew.h>
 #include <GL/glut.h>
 #include"Person.h"
 #include"Simulator.h"
@@ -19,7 +15,6 @@ using namespace std::chrono;
 
 bool validateProb(double, double);
 bool validatePeople(int);
-void display();
 
 int main(int argc, char *argv[]) {
 	unsigned n = std::thread::hardware_concurrency(); //Saca la cantidad de nucleos en la computadora
@@ -65,6 +60,7 @@ int main(int argc, char *argv[]) {
 		glutCreateWindow("Data");
 		sim.graphic();
 		glutMainLoop();
+		//!GRAFICACION
 		cout << endl;
 		cout << "Desea ver otra simulacion?" << endl;
 		cout << "1. Si   2. No" << endl;
@@ -72,6 +68,7 @@ int main(int argc, char *argv[]) {
 		sims++;
 		name = " ";
 	} while (new_sim == 1);
+	sim.destructor();
 	cin >> number_peopleM; //Para que no se cierre
 	return 0;
 }

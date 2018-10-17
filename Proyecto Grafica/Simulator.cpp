@@ -6,10 +6,6 @@
 #include<fstream>
 #include<omp.h>
 #include<chrono>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <GL/glew.h>
 #include <GL/glut.h>
 
 using namespace std;
@@ -149,12 +145,12 @@ double Simulator::update(string name, int healthy) {
 			isSick = 0;
 		}
 		steady_clock::time_point t1 = steady_clock::now(); //Quitamos el tiempo de escritura de archivos del tiempo total de simulacion
-		stable = clear(actual_tic, name); //*
+		clear(actual_tic, name); //*
 		steady_clock::time_point t2 = steady_clock::now(); //*
 		duration<double> time_span = duration_cast<duration<double>>(t2 - t1); //*
 		out_time += time_span.count(); //*
 		actual_tic++;
-	} while (!stable && (actual_tic <= tic));
+	} while ((actual_tic <= tic));
 	cout << std::endl;
 	cout << "Archivo generado" << endl;
 	peopleVec.clear(); //Se limpian las ed's para nuevas simulaciones. Ademas se limpian las variables
@@ -196,21 +192,25 @@ int Simulator::movePos(int pos, int world_size) {
 	return pos;
 }
 
-bool Simulator::clear(int actual_tic, string name) {
+void Simulator::clear(int actual_tic, string name) {
 	queue_lk<int>::msg_t<int> msgH(healthy_people);
 	queue_lk<int>::msg_t<int> msgS(sick_people);
 	queue_lk<int>::msg_t<int> msgI(dead_people);
 	int x, y;
 	bool stable = 0;
 	ofstream file;
-	file.open(name, ios_base::app);
-	file << "Reporte del tic " << actual_tic << endl
-		<< " Personas muertas total " << dead_people << ", promedio " << dead_people / actual_tic << ", porcentaje " << number_people * dead_people / 100 << endl
-		<< " Personas sanas total " << healthy_people << ", promedio " << healthy_people / actual_tic << ", porcentaje " << number_people * healthy_people / 100 << endl
-		<< " Personas enfermas total " << sick_people << ", promedio " << sick_people / actual_tic << ", porcentaje " << number_people * sick_people / 100 << endl
-		<< " Personas inmunes total " << inmune_people << ", promedio " << inmune_people / actual_tic << ", porcentaje " << number_people * inmune_people / 100 << endl;
+#pragma omp parallel num_threads(thread_count)
+#pragma omp single
+	{
+		file.open(name, ios_base::app);
+		file << "Reporte del tic " << actual_tic << endl
+			<< " Personas muertas total " << dead_people << ", promedio " << dead_people / actual_tic << ", porcentaje " << number_people * dead_people / 100 << endl
+			<< " Personas sanas total " << healthy_people << ", promedio " << healthy_people / actual_tic << ", porcentaje " << number_people * healthy_people / 100 << endl
+			<< " Personas enfermas total " << sick_people << ", promedio " << sick_people / actual_tic << ", porcentaje " << number_people * sick_people / 100 << endl
+			<< " Personas inmunes total " << inmune_people << ", promedio " << inmune_people / actual_tic << ", porcentaje " << number_people * inmune_people / 100 << endl;
 
-	file.close();//Hacer archivo
+		file.close();//Hacer archivo
+	}
 
 	msg_queuesH.set_lock();
 	msg_queuesH.push(msgH);
@@ -224,10 +224,6 @@ bool Simulator::clear(int actual_tic, string name) {
 	msg_queuesI.push(msgS);
 	msg_queuesI.unset_lock();
 
-	if (sick_people == 0) {
-		stable = 1;
-	}
-	else {
 #pragma omp parallel for num_threads(thread_count)
 		for (int i = 0; i < peopleVec.size(); i++) { //Volvemos a llenar la matriz despues de haber procesado a todos en el tic anterior
 			x = peopleVec[i].getX();
@@ -235,14 +231,14 @@ bool Simulator::clear(int actual_tic, string name) {
 #pragma omp atomic
 			world[x][y]++;
 		}
-	}
-	return stable;
 }
 
 void Simulator::graphic(){
+#pragma omp parallel num_threads(1)
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-	double msg, coordy;
+	double msg;
+	double coordy;
 	double coordx = -1.0;
 	int rank;
 	glBegin(GL_LINE_STRIP);
@@ -250,44 +246,58 @@ void Simulator::graphic(){
 	glColor3f(0.0, 1.0, 0.0);
 	glVertex2f(-1.0, 1.0);
 	while (!(msg_queuesH.empty())) {
+		coordy = 1.0;
 		msg = msg_queuesH.front().msg;
+		cout << msg << " sanos" << endl;
 		rank = msg_queuesH.front().src_rank;
 		msg_queuesH.pop();
 		coordy = msg / number_people;
 		coordx += 0.01;
 		glVertex2f(coordx, coordy);
 	}
-	glVertex2f(1.0, -1.0);
 	glEnd();
 
 	glBegin(GL_LINE_STRIP);
 	glLineWidth(2);
 	glColor3f(1.0, 0.0, 0.0);
-	glVertex2f(-1.0, -1.0);
+	glVertex2f(-1.0, 0.0);
 	while (!(msg_queuesS.empty())) {
 		msg = msg_queuesS.front().msg;
 		rank = msg_queuesS.front().src_rank;
+		cout << msg << " enfermos" << endl;
 		msg_queuesS.pop();
 		coordy = msg / number_people;
 		coordx += 0.01;
 		glVertex2f(coordx, coordy);
 	}
-	glVertex2f(1.0, -1.0);
 	glEnd();
 
 	glBegin(GL_LINE_STRIP);
 	glLineWidth(2);
 	glColor3f(0.5, 0.5, 0.5);
-	glVertex2f(-1.0, -1.0);
+	glVertex2f(-1.0, 0.0);
 	while (!(msg_queuesI.empty())) {
 		msg = msg_queuesI.front().msg;
 		rank = msg_queuesI.front().src_rank;
+		cout << msg << " inmunes" << endl;
 		msg_queuesI.pop();
 		coordy = msg / number_people;
-		coordx += 0.02;
+		coordx += 0.01;
 		glVertex2f(coordx, coordy);
 	}
 	glEnd();
 	glFlush();
 	glutSwapBuffers();
+	msg_queuesH.~queue_lk();
+	msg_queuesS.~queue_lk();
+	msg_queuesI.~queue_lk();
+}
+
+void Simulator::destructor() {
+#pragma omp single
+	{
+		peopleVec.~vector();
+		v.~vector();
+		world.~vector();
+	}
 }
